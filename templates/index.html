@@ -1,0 +1,918 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Detecting DNS Tunneling Using Entropy and Timing Statistics | College Statistics Project</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+  <!-- Local Chart.js bundle with CDN fallback -->
+  <script src="/static/js/chart.umd.min.js"></script>
+</head>
+<body>
+
+  <!-- Header -->
+  <header class="app-header">
+    <div class="header-container">
+      <div class="header-titles">
+        <h1>Detecting DNS Tunneling Using Entropy & Timing Statistics</h1>
+        <div class="header-subtitle">Probability and Statistics Course Project | Academic Demonstration</div>
+      </div>
+      <div class="header-dataset-selector">
+        <label for="dataset-select">Active Dataset:</label>
+        <select id="dataset-select" title="Switch active dataset"></select>
+        <a href="/api/dataset/download" class="btn btn-secondary btn-sm" title="Export processed dataset with statistical features">Export CSV</a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Navigation Tabs -->
+  <nav class="nav-tabs-wrapper">
+    <ul class="nav-tabs">
+      <li><button class="nav-tab-btn active" data-tab="tab-overview">1. Overview & Dataset</button></li>
+      <li><button class="nav-tab-btn" data-tab="tab-descriptive">2. Descriptive Statistics</button></li>
+      <li><button class="nav-tab-btn" data-tab="tab-probability">3. Probability & Distributions</button></li>
+      <li><button class="nav-tab-btn" data-tab="tab-sampling">4. Sampling & CLT</button></li>
+      <li><button class="nav-tab-btn" data-tab="tab-hypothesis">5. Hypothesis Testing & ANOVA</button></li>
+      <li><button class="nav-tab-btn" data-tab="tab-regression">6. Correlation & Regression</button></li>
+      <li><button class="nav-tab-btn" data-tab="tab-detector">7. Statistical Detection</button></li>
+      <li><button class="nav-tab-btn" data-tab="tab-syllabus">8. Syllabus Reference & Report</button></li>
+    </ul>
+  </nav>
+
+  <!-- Main Container -->
+  <main class="main-container">
+
+    <!-- Quick Metrics Top Banner -->
+    <section class="metrics-row">
+      <div class="metric-card">
+        <div class="metric-label">Total Queries</div>
+        <div class="metric-value" id="metric-total-queries">-</div>
+        <div class="metric-sub">Captured in active dataset</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Normal Traffic</div>
+        <div class="metric-value" style="color: var(--normal-color);" id="metric-normal-queries">-</div>
+        <div class="metric-sub">Legitimate domain requests</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Suspicious / Tunneling</div>
+        <div class="metric-value" style="color: var(--suspicious-color);" id="metric-suspicious-queries">-</div>
+        <div class="metric-sub">Anomalous / encoded payloads</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Mean Shannon Entropy</div>
+        <div class="metric-value" id="metric-mean-entropy">-</div>
+        <div class="metric-sub">Average randomness (bits/char)</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Mean Query Length</div>
+        <div class="metric-value" id="metric-mean-length">-</div>
+        <div class="metric-sub">Domain character length</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Mean Inter-Arrival Time</div>
+        <div class="metric-value" id="metric-mean-iat">-</div>
+        <div class="metric-sub">Average spacing between queries</div>
+      </div>
+    </section>
+
+    <!-- TAB 1: Overview & Dataset -->
+    <div id="tab-overview" class="tab-content active">
+      <div class="grid-2">
+        <!-- Project Context Card -->
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <h2 class="card-title">Project Abstract & Domain Context</h2>
+              <div class="card-subtitle">Applying statistical modeling to detect encoded data channels</div>
+            </div>
+          </div>
+          <p style="margin-bottom: 10px; font-size: 0.88rem; color: var(--text-muted);">
+            <strong>DNS Tunneling</strong> encodes unauthorized data into domain name queries (e.g. <code>a7f9b0c1.tunnel.attack.com</code>) to bypass network security controls. Rather than relying on rigid signature matching, this course project evaluates two fundamental statistical properties:
+          </p>
+          <ul style="margin-left: 20px; font-size: 0.86rem; color: var(--text-muted); line-height: 1.6;">
+            <li><strong>Shannon Entropy ($H$):</strong> Encoded or encrypted payload characters exhibit high informational randomness ($H \approx 4.0 - 5.0$ bits/char) compared to natural language domain names ($H \approx 2.0 - 3.4$ bits/char).</li>
+            <li><strong>Timing & Burst Regularity ($\Delta t$):</strong> Automated tools or periodic beacons exhibit unnaturally fast or regular arrival rates compared to human web browsing.</li>
+          </ul>
+          <div class="interpretation-box info" style="margin-top: 14px;">
+            <div class="interpretation-title">Primary Focus of This Project</div>
+            This is a <strong>Probability and Statistics project</strong>. All calculations, distributions, hypothesis tests, and detection benchmarks are mathematically grounded in the syllabus concepts.
+          </div>
+        </div>
+
+        <!-- CSV Upload & Dataset Switcher Card -->
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <h2 class="card-title">Upload Custom Dataset or Switch Sample</h2>
+              <div class="card-subtitle">Supports CSV files with custom or raw DNS logs</div>
+            </div>
+          </div>
+          <form id="upload-form" style="margin-bottom: 14px;">
+            <div style="margin-bottom: 8px;">
+              <label style="display:block; font-size:0.82rem; font-weight:600; margin-bottom:4px;" for="upload-file">Select CSV File:</label>
+              <input type="file" id="upload-file" accept=".csv" required style="font-size: 0.84rem;">
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm">Upload & Process</button>
+            <span id="upload-status" style="margin-left: 10px; font-size: 0.82rem;"></span>
+          </form>
+          <p style="font-size: 0.8rem; color: var(--text-muted);">
+            <strong>Required columns:</strong> <code>query</code> (domain name) and <code>timestamp</code> (or datetime).<br>
+            <em>Optional columns:</em> <code>label</code> (Normal/Suspicious), <code>record_type</code>.<br>
+            If <code>entropy</code>, <code>query_length</code>, or <code>inter_arrival_time</code> are missing, the backend automatically extracts and computes them!
+          </p>
+        </div>
+      </div>
+
+      <!-- Traffic Records Table Card -->
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title">Active DNS Traffic Records</h2>
+            <div class="card-subtitle">Inspecting query names, lengths, entropy, timing, and labels</div>
+          </div>
+          <div class="controls-bar" style="margin-bottom: 0;">
+            <input type="text" id="table-search" placeholder="Search domain or record..." style="width: 220px;">
+            <select id="table-label-filter">
+              <option value="all">All Traffic</option>
+              <option value="normal">Normal Only</option>
+              <option value="suspicious">Suspicious Only</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="stats-table">
+            <thead>
+              <tr>
+                <th>Timestamp</th>
+                <th>Query Domain Name</th>
+                <th>Record Type</th>
+                <th class="numeric">Length (chars)</th>
+                <th class="numeric">Shannon Entropy (bits)</th>
+                <th class="numeric">Inter-Arrival Time (s)</th>
+                <th>Label</th>
+              </tr>
+            </thead>
+            <tbody id="dns-records-tbody">
+              <tr><td colspan="7" style="text-align:center; padding: 20px;">Loading traffic records...</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:12px; font-size:0.82rem;">
+          <span id="page-info">Page 1</span>
+          <div style="display:flex; gap:6px;">
+            <button id="btn-prev-page" class="btn btn-secondary btn-sm" disabled>Previous</button>
+            <button id="btn-next-page" class="btn btn-secondary btn-sm">Next</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 2: Descriptive Statistics -->
+    <div id="tab-descriptive" class="tab-content">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title">Comprehensive Descriptive Statistics</h2>
+            <div class="card-subtitle">Measures of central tendency, dispersion, shape, and quartiles</div>
+          </div>
+          <div class="controls-bar" style="margin-bottom:0;">
+            <label for="desc-feature-select">Select Feature:</label>
+            <select id="desc-feature-select">
+              <option value="entropy">Shannon Entropy (bits/char)</option>
+              <option value="query_length">Query Length (characters)</option>
+              <option value="inter_arrival_time">Inter-Arrival Time (seconds)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <!-- Summary Table -->
+          <div class="table-responsive">
+            <table class="stats-table">
+              <thead>
+                <tr>
+                  <th>Descriptive Metric</th>
+                  <th class="numeric">Normal Traffic</th>
+                  <th class="numeric">Suspicious / Tunneling</th>
+                  <th class="numeric">Overall Population</th>
+                </tr>
+              </thead>
+              <tbody id="desc-stats-tbody">
+                <tr><td colspan="4" style="text-align:center; padding:15px;">Loading statistics...</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Histogram Chart -->
+          <div>
+            <div style="font-weight:600; font-size:0.86rem; color:var(--text-muted); margin-bottom:8px;">
+              Frequency Distribution Histogram (Normal vs Suspicious)
+            </div>
+            <div class="chart-box">
+              <canvas id="descHistogramChart"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <div class="interpretation-box" id="desc-interpretation-text">
+          Loading statistical interpretation...
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 3: Probability & Distributions -->
+    <div id="tab-probability" class="tab-content">
+      <!-- Bayes' Theorem Card -->
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title">Conditional Probability & Bayes' Theorem Playground</h2>
+            <div class="card-subtitle">Evaluating the impact of prior base rate and detector accuracy: P(Tunnel | Alarm)</div>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <!-- Controls -->
+          <div>
+            <div class="slider-group">
+              <div class="slider-header">
+                <span>Prior Probability of Attack P(Tunnel):</span>
+                <span class="slider-val" id="bayes-prior-slider-val">0.05</span>
+              </div>
+              <input type="range" id="bayes-prior-slider" min="0.005" max="0.30" step="0.005" value="0.05">
+              <small style="color:var(--text-muted);">Base rate of tunneling queries in total network traffic</small>
+            </div>
+
+            <div class="slider-group">
+              <div class="slider-header">
+                <span>Detector Sensitivity / Recall P(Alarm | Tunnel):</span>
+                <span class="slider-val" id="bayes-sens-slider-val">0.94</span>
+              </div>
+              <input type="range" id="bayes-sens-slider" min="0.70" max="0.99" step="0.01" value="0.94">
+              <small style="color:var(--text-muted);">Probability detector flags an alarm when a query is truly tunneling</small>
+            </div>
+
+            <div class="slider-group">
+              <div class="slider-header">
+                <span>False Positive Rate P(Alarm | Normal):</span>
+                <span class="slider-val" id="bayes-fpr-slider-val">0.03</span>
+              </div>
+              <input type="range" id="bayes-fpr-slider" min="0.005" max="0.15" step="0.005" value="0.03">
+              <small style="color:var(--text-muted);">Probability detector flags an alarm on benign normal traffic</small>
+            </div>
+          </div>
+
+          <!-- Calculated Results -->
+          <div>
+            <div class="grid-3" style="margin-bottom:12px;">
+              <div class="metric-card" style="padding:10px;">
+                <div class="metric-label">Posterior P(Tunnel|Alarm)</div>
+                <div class="metric-value" id="bayes-posterior-val" style="color:var(--secondary-color); font-size:1.3rem;">-</div>
+                <div class="metric-sub">Precision (PPV)</div>
+              </div>
+              <div class="metric-card" style="padding:10px;">
+                <div class="metric-label">Total P(Alarm)</div>
+                <div class="metric-value" id="bayes-marginal-val" style="font-size:1.3rem;">-</div>
+                <div class="metric-sub">Marginal Probability</div>
+              </div>
+              <div class="metric-card" style="padding:10px;">
+                <div class="metric-label">P(Normal|No Alarm)</div>
+                <div class="metric-value" id="bayes-npv-val" style="color:var(--normal-color); font-size:1.3rem;">-</div>
+                <div class="metric-sub">Negative Predictive Value</div>
+              </div>
+            </div>
+
+            <div class="interpretation-box warning" id="bayes-note-text">
+              Loading Bayes' theorem calculation...
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Binomial, Poisson & Exponential Distributions -->
+      <div class="grid-2">
+        <!-- Binomial Card -->
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <h2 class="card-title">Binomial Distribution (Batch Modeling)</h2>
+              <div class="card-subtitle">Number of tunneling packets k in a batch of n queries ~ B(n, p)</div>
+            </div>
+          </div>
+
+          <div style="display:flex; gap:16px; margin-bottom:10px;">
+            <div style="flex:1;">
+              <div class="slider-header">
+                <span>Batch Size (n): <strong id="binom-n-slider-val">30</strong></span>
+              </div>
+              <input type="range" id="binom-n-slider" min="10" max="60" step="5" value="30">
+            </div>
+            <div style="flex:1;">
+              <div class="slider-header">
+                <span>Success Rate (p): <strong id="binom-p-slider-val">0.15</strong></span>
+              </div>
+              <input type="range" id="binom-p-slider" min="0.02" max="0.50" step="0.02" value="0.15">
+            </div>
+          </div>
+
+          <div style="font-size:0.82rem; margin-bottom:6px; color:var(--text-muted);">
+            <span id="binom-mean-val" style="margin-right:12px; font-weight:600;">E[X] = -</span>
+            <span id="binom-var-val" style="font-weight:600;">Var(X) = -</span>
+          </div>
+
+          <div class="chart-box">
+            <canvas id="binomialChartCanvas"></canvas>
+          </div>
+        </div>
+
+        <!-- Poisson Arrival Card -->
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <h2 class="card-title">Poisson Arrival Process & Dispersion</h2>
+              <div class="card-subtitle">Empirical packet arrival rate λ vs theoretical Poisson PMF</div>
+            </div>
+          </div>
+
+          <div class="chart-box">
+            <canvas id="poissonChartCanvas"></canvas>
+          </div>
+
+          <div class="interpretation-box info" id="poisson-vmr-text" style="margin-top:8px;">
+            Loading Poisson analysis...
+          </div>
+        </div>
+      </div>
+
+      <!-- Exponential IAT Card -->
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title">Exponential Distribution: Inter-Arrival Times (IAT)</h2>
+            <div class="card-subtitle">Testing the memoryless arrival property: f(t) = λ e^(-λt) for normal vs suspicious traffic</div>
+          </div>
+        </div>
+        <div class="chart-box-lg">
+          <canvas id="exponentialChartCanvas"></canvas>
+        </div>
+        <p style="font-size:0.82rem; color:var(--text-muted); margin-top:8px;">
+          <strong>Concept note:</strong> If network events arrive as an independent Poisson process with rate $\lambda$, their inter-arrival times are Exponentially distributed. Legitimate web requests approximate this exponential decay, whereas automated tunneling tools or periodic C2 beacons violate memorylessness by concentrating arrivals in tight periodic clusters.
+        </p>
+      </div>
+    </div>
+
+    <!-- TAB 4: Sampling & Central Limit Theorem -->
+    <div id="tab-sampling" class="tab-content">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title">Central Limit Theorem (CLT) Monte Carlo Demonstration</h2>
+            <div class="card-subtitle">Observing convergence of sample means to a Normal Distribution: x̄ ~ N(μ, σ²/n)</div>
+          </div>
+          <div class="controls-bar" style="margin-bottom:0;">
+            <label for="clt-feature-select">Population Feature:</label>
+            <select id="clt-feature-select">
+              <option value="entropy">Shannon Entropy</option>
+              <option value="query_length">Query Length</option>
+              <option value="inter_arrival_time">Inter-Arrival Time</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <!-- CLT Controls -->
+          <div>
+            <div class="slider-group">
+              <div class="slider-header">
+                <span>Sample Size per Trial (n):</span>
+                <span class="slider-val" id="clt-n-slider-val">30</span>
+              </div>
+              <input type="range" id="clt-n-slider" min="5" max="100" step="5" value="30">
+              <small style="color:var(--text-muted);">As n ≥ 30, CLT states sampling distribution approaches normality.</small>
+            </div>
+
+            <div class="slider-group">
+              <div class="slider-header">
+                <span>Number of Repeated Samples (N):</span>
+                <span class="slider-val" id="clt-reps-slider-val">500</span>
+              </div>
+              <input type="range" id="clt-reps-slider" min="100" max="1500" step="100" value="500">
+              <small style="color:var(--text-muted);">Number of Monte Carlo trials drawn with replacement.</small>
+            </div>
+
+            <button id="btn-run-clt" class="btn btn-primary" style="margin-top:6px;">Run CLT Simulation</button>
+
+            <div class="interpretation-box info" id="clt-stats-box" style="margin-top:14px;">
+              Loading CLT simulation...
+            </div>
+          </div>
+
+          <!-- CLT Chart -->
+          <div>
+            <div style="font-weight:600; font-size:0.86rem; color:var(--text-muted); margin-bottom:6px;">
+              Sampling Distribution of Sample Means (with Theoretical Bell Curve)
+            </div>
+            <div class="chart-box-lg">
+              <canvas id="cltChartCanvas"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <!-- Confidence Intervals Card -->
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <h2 class="card-title">Confidence Intervals for Population Mean</h2>
+              <div class="card-subtitle">Using Student's t-distribution: x̄ ± t_(α/2, n-1) · (s / √n)</div>
+            </div>
+          </div>
+          <div class="table-responsive">
+            <table class="stats-table">
+              <thead>
+                <tr>
+                  <th>Confidence Level (1-α)</th>
+                  <th class="numeric">Critical t*</th>
+                  <th class="numeric">Margin of Error (E)</th>
+                  <th class="numeric">Confidence Interval</th>
+                  <th>Interpretation</th>
+                </tr>
+              </thead>
+              <tbody id="ci-tbody">
+                <tr><td colspan="5" style="text-align:center; padding:12px;">Loading confidence intervals...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Z-Score & Normality Diagnostics Card -->
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <h2 class="card-title">Z-Score Analysis & Normality Testing</h2>
+              <div class="card-subtitle">Checking Empirical Rule (68-95-99.7%) and D'Agostino-Pearson omnibus test</div>
+            </div>
+          </div>
+          <div class="interpretation-box" id="normality-box">
+            Loading normality check...
+          </div>
+          <p style="font-size:0.82rem; color:var(--text-muted); margin-top:12px;">
+            <strong>Important syllabus note:</strong> Statistical honesty requires verifying assumptions. Natural DNS domain lengths and arrival times are typically skewed (non-normal), which is why CLT and Welch's t-test (robust to mild skewness at large $n$) are applied rather than assuming raw feature normality.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 5: Hypothesis Testing & ANOVA -->
+    <div id="tab-hypothesis" class="tab-content">
+      <!-- Welch's t-Test Card -->
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title">Two-Sample Hypothesis Testing (Welch's t-Test)</h2>
+            <div class="card-subtitle">
+              H₀: μ_tunnel = μ_normal (Means are identical) vs H₁: μ_tunnel ≠ μ_normal (Statistically significant difference)
+            </div>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="stats-table">
+            <thead>
+              <tr>
+                <th>Feature Tested</th>
+                <th class="numeric">Normal Mean</th>
+                <th class="numeric">Suspicious Mean</th>
+                <th class="numeric">Welch t-stat</th>
+                <th class="numeric">Welch df</th>
+                <th class="numeric">p-value</th>
+                <th class="numeric">Cohen's d (Effect Size)</th>
+                <th>Decision (α = 0.05)</th>
+              </tr>
+            </thead>
+            <tbody id="t-test-tbody">
+              <tr><td colspan="8" style="text-align:center; padding:15px;">Loading t-tests...</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="grid-2" style="margin-top:14px;">
+          <div class="interpretation-box warning">
+            <div class="interpretation-title">Type I Error (False Positive, α)</div>
+            Rejecting the null hypothesis when it is actually true. In this context: falsely concluding that legitimate DNS traffic has different statistical characteristics, leading to false alarms on harmless web users.
+          </div>
+          <div class="interpretation-box info">
+            <div class="interpretation-title">Type II Error (False Negative, β)</div>
+            Failing to reject the null hypothesis when an actual difference exists. In this context: failing to detect active DNS tunneling and exfiltration because the statistical test was underpowered or the threshold was too conservative.
+          </div>
+        </div>
+      </div>
+
+      <!-- Chi-Square & ANOVA Grid -->
+      <div class="grid-2">
+        <!-- Chi-Square Test Card -->
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <h2 class="card-title">Chi-Square Test of Independence (χ²)</h2>
+              <div class="card-subtitle">H₀: Query Length Category and Traffic Label are Independent</div>
+            </div>
+          </div>
+          <div class="table-responsive">
+            <table class="stats-table">
+              <thead>
+                <tr>
+                  <th>Length Category</th>
+                  <th class="numeric">Normal (Obs / Exp)</th>
+                  <th class="numeric">Suspicious (Obs / Exp)</th>
+                </tr>
+              </thead>
+              <tbody id="chi-observed-tbody">
+                <tr><td colspan="3" style="text-align:center;">Loading Chi-square table...</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div style="margin-top:10px; font-size:0.86rem; font-weight:700;" id="chi-stat-val">-</div>
+          <div class="interpretation-box info" id="chi-conclusion-text" style="margin-top:6px;">
+            Loading Chi-square conclusion...
+          </div>
+        </div>
+
+        <!-- One-Way ANOVA Card -->
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <h2 class="card-title">One-Way ANOVA (Record Types)</h2>
+              <div class="card-subtitle">Comparing mean Shannon Entropy across DNS Record Types (A, TXT, CNAME, etc.)</div>
+            </div>
+          </div>
+          <div class="table-responsive">
+            <table class="stats-table">
+              <thead>
+                <tr>
+                  <th>Source of Variation</th>
+                  <th class="numeric">Sum of Squares (SS)</th>
+                  <th class="numeric">df</th>
+                  <th class="numeric">Mean Square (MS)</th>
+                  <th class="numeric">F-stat</th>
+                  <th class="numeric">p-value</th>
+                </tr>
+              </thead>
+              <tbody id="anova-tbody">
+                <tr><td colspan="6" style="text-align:center;">Loading ANOVA table...</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="interpretation-box" id="anova-conclusion-text" style="margin-top:10px;">
+            Loading ANOVA conclusion...
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 6: Correlation & Linear Regression -->
+    <div id="tab-regression" class="tab-content">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title">Correlation & Simple Linear Regression Analysis</h2>
+            <div class="card-subtitle">Modeling relationship: Independent Variable X (Query Length) vs Dependent Variable Y (Shannon Entropy)</div>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <!-- Metrics & Interpretation -->
+          <div>
+            <div class="metrics-row" style="grid-template-columns: 1fr 1fr; margin-bottom:14px;">
+              <div class="metric-card">
+                <div class="metric-label">Pearson Correlation (r)</div>
+                <div class="metric-value" id="reg-pearson-r">-</div>
+                <div class="metric-sub">Linear correlation degree</div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-label">Spearman Rank (ρ)</div>
+                <div class="metric-value" id="reg-spearman-rho">-</div>
+                <div class="metric-sub">Monotonic relationship</div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-label">Coefficient of Determination (R²)</div>
+                <div class="metric-value" id="reg-r2" style="color:var(--secondary-color);">-</div>
+                <div class="metric-sub">% Variance explained</div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-label">Fitted OLS Equation</div>
+                <div class="metric-value" id="reg-equation" style="font-size:0.95rem; line-height:1.4;">-</div>
+                <div class="metric-sub">ŷ = β₀ + β₁x</div>
+              </div>
+            </div>
+
+            <div class="interpretation-box info" id="reg-interpretation-text">
+              Loading regression analysis...
+            </div>
+          </div>
+
+          <!-- Scatter & Regression Plot -->
+          <div>
+            <div style="font-weight:600; font-size:0.86rem; color:var(--text-muted); margin-bottom:6px;">
+              Scatter Plot & Ordinary Least Squares (OLS) Fitted Line
+            </div>
+            <div class="chart-box-lg">
+              <canvas id="regressionChartCanvas"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 7: Statistical Detection Module -->
+    <div id="tab-detector" class="tab-content">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title">Statistical Detection Engine & Benchmark</h2>
+            <div class="card-subtitle">Transparent comparison of Entropy-Only, Timing-Only, and Combined Detectors</div>
+          </div>
+        </div>
+
+        <!-- Adjustable Threshold Controls -->
+        <div class="grid-3" style="margin-bottom:14px; background:#f8fafc; padding:12px; border-radius:var(--radius); border:1px solid var(--border-color);">
+          <div class="slider-group" style="margin-bottom:0;">
+            <div class="slider-header">
+              <span>Entropy Threshold (θ_H):</span>
+              <span class="slider-val" id="det-entropy-slider-val">3.75</span>
+            </div>
+            <input type="range" id="det-entropy-slider" min="2.50" max="4.80" step="0.05" value="3.75">
+            <small style="color:var(--text-muted);">Bits/char: Queries ≥ θ_H flagged as suspicious</small>
+          </div>
+
+          <div class="slider-group" style="margin-bottom:0;">
+            <div class="slider-header">
+              <span>Inter-Arrival Threshold (θ_T):</span>
+              <span class="slider-val" id="det-iat-slider-val">0.30</span>
+            </div>
+            <input type="range" id="det-iat-slider" min="0.05" max="1.50" step="0.05" value="0.30">
+            <small style="color:var(--text-muted);">Seconds: Spacing ≤ θ_T flagged as automated beacon</small>
+          </div>
+
+          <div class="slider-group" style="margin-bottom:0;">
+            <div class="slider-header">
+              <span>Query Length Threshold (θ_L):</span>
+              <span class="slider-val" id="det-len-slider-val">40</span>
+            </div>
+            <input type="range" id="det-len-slider" min="20" max="100" step="5" value="40">
+            <small style="color:var(--text-muted);">Characters: Required payload length bound</small>
+          </div>
+        </div>
+
+        <!-- 3 Side-by-Side Confusion Matrices -->
+        <div class="grid-3" style="margin-bottom:16px;">
+          <!-- Matrix 1 -->
+          <div class="card" style="margin-bottom:0; background:#ffffff;">
+            <div style="font-weight:700; font-size:0.9rem; text-align:center; color:var(--primary-color);">1. Entropy-Only Detector</div>
+            <div style="text-align:center; font-size:0.75rem; color:var(--text-muted);">Rule: Entropy ≥ θ_H</div>
+            <div class="matrix-container">
+              <div class="matrix-grid">
+                <div class="matrix-cell cell-tp">
+                  <div class="matrix-cell-title">True Pos (TP)</div>
+                  <div class="matrix-cell-value" id="cm-entropy-tp">-</div>
+                  <div class="matrix-cell-sub">Tunnel Detected</div>
+                </div>
+                <div class="matrix-cell cell-fp">
+                  <div class="matrix-cell-title">False Pos (FP)</div>
+                  <div class="matrix-cell-value" id="cm-entropy-fp">-</div>
+                  <div class="matrix-cell-sub">False Alarm</div>
+                </div>
+                <div class="matrix-cell cell-fn">
+                  <div class="matrix-cell-title">False Neg (FN)</div>
+                  <div class="matrix-cell-value" id="cm-entropy-fn">-</div>
+                  <div class="matrix-cell-sub">Missed Attack</div>
+                </div>
+                <div class="matrix-cell cell-tn">
+                  <div class="matrix-cell-title">True Neg (TN)</div>
+                  <div class="matrix-cell-value" id="cm-entropy-tn">-</div>
+                  <div class="matrix-cell-sub">Normal Cleared</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Matrix 2 -->
+          <div class="card" style="margin-bottom:0; background:#ffffff;">
+            <div style="font-weight:700; font-size:0.9rem; text-align:center; color:var(--primary-color);">2. Timing (IAT) Only</div>
+            <div style="text-align:center; font-size:0.75rem; color:var(--text-muted);">Rule: IAT ≤ θ_T</div>
+            <div class="matrix-container">
+              <div class="matrix-grid">
+                <div class="matrix-cell cell-tp">
+                  <div class="matrix-cell-title">True Pos (TP)</div>
+                  <div class="matrix-cell-value" id="cm-timing-tp">-</div>
+                  <div class="matrix-cell-sub">Tunnel Detected</div>
+                </div>
+                <div class="matrix-cell cell-fp">
+                  <div class="matrix-cell-title">False Pos (FP)</div>
+                  <div class="matrix-cell-value" id="cm-timing-fp">-</div>
+                  <div class="matrix-cell-sub">False Alarm</div>
+                </div>
+                <div class="matrix-cell cell-fn">
+                  <div class="matrix-cell-title">False Neg (FN)</div>
+                  <div class="matrix-cell-value" id="cm-timing-fn">-</div>
+                  <div class="matrix-cell-sub">Missed Attack</div>
+                </div>
+                <div class="matrix-cell cell-tn">
+                  <div class="matrix-cell-title">True Neg (TN)</div>
+                  <div class="matrix-cell-value" id="cm-timing-tn">-</div>
+                  <div class="matrix-cell-sub">Normal Cleared</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Matrix 3 -->
+          <div class="card" style="margin-bottom:0; background:#ffffff;">
+            <div style="font-weight:700; font-size:0.9rem; text-align:center; color:var(--primary-color);">3. Combined Detector</div>
+            <div style="text-align:center; font-size:0.75rem; color:var(--text-muted);">Rule: Entropy ≥ θ_H AND (Len ≥ θ_L OR IAT ≤ θ_T)</div>
+            <div class="matrix-container">
+              <div class="matrix-grid">
+                <div class="matrix-cell cell-tp">
+                  <div class="matrix-cell-title">True Pos (TP)</div>
+                  <div class="matrix-cell-value" id="cm-combined-tp">-</div>
+                  <div class="matrix-cell-sub">Tunnel Detected</div>
+                </div>
+                <div class="matrix-cell cell-fp">
+                  <div class="matrix-cell-title">False Pos (FP)</div>
+                  <div class="matrix-cell-value" id="cm-combined-fp">-</div>
+                  <div class="matrix-cell-sub">False Alarm</div>
+                </div>
+                <div class="matrix-cell cell-fn">
+                  <div class="matrix-cell-title">False Neg (FN)</div>
+                  <div class="matrix-cell-value" id="cm-combined-fn">-</div>
+                  <div class="matrix-cell-sub">Missed Attack</div>
+                </div>
+                <div class="matrix-cell cell-tn">
+                  <div class="matrix-cell-title">True Neg (TN)</div>
+                  <div class="matrix-cell-value" id="cm-combined-tn">-</div>
+                  <div class="matrix-cell-sub">Normal Cleared</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Comparative Metrics Table -->
+        <div class="table-responsive">
+          <table class="stats-table">
+            <thead>
+              <tr>
+                <th>Detector Architecture</th>
+                <th class="numeric">Detection Rate (Recall)</th>
+                <th class="numeric">False Positive Rate (FPR)</th>
+                <th class="numeric">Precision (PPV)</th>
+                <th class="numeric">Specificity (TNR)</th>
+                <th class="numeric">Accuracy</th>
+                <th class="numeric">F1-Score</th>
+              </tr>
+            </thead>
+            <tbody id="det-metrics-tbody">
+              <tr><td colspan="7" style="text-align:center;">Evaluating detectors...</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Comparison Bar Chart & Summary -->
+        <div class="grid-2" style="margin-top:16px;">
+          <div>
+            <div style="font-weight:600; font-size:0.86rem; color:var(--text-muted); margin-bottom:6px;">
+              Visual Performance Benchmark Across Detectors
+            </div>
+            <div class="chart-box">
+              <canvas id="detectorComparisonCanvas"></canvas>
+            </div>
+          </div>
+          <div>
+            <div class="interpretation-box info" id="det-comparison-summary" style="height:100%; display:flex; flex-direction:column; justify-content:center;">
+              Loading detector comparison summary...
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 8: Syllabus Reference & Project Report -->
+    <div id="tab-syllabus" class="tab-content">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title">Probability and Statistics Syllabus Implementation Mapping</h2>
+            <div class="card-subtitle">Detailed verification of course curriculum topics and their practical implementations</div>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="stats-table">
+            <thead>
+              <tr>
+                <th>Syllabus Unit & Concept</th>
+                <th>Mathematical Formula</th>
+                <th>Application in DNS Tunneling Project</th>
+                <th>Tab Location</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Descriptive Statistics</strong></td>
+                <td>$$\mu = \frac{1}{n}\sum x_i,\quad s^2 = \frac{1}{n-1}\sum (x_i - \bar{x})^2,\quad CV = \frac{s}{\bar{x}}\times 100\%$$</td>
+                <td>Calculates mean, median, mode, sample/pop variance, std dev, CV, IQR, skewness, and kurtosis for Entropy, Query Length, and IAT.</td>
+                <td>Tab 2</td>
+              </tr>
+              <tr>
+                <td><strong>Frequency Distributions</strong></td>
+                <td>$$f_i = \text{count}(x \in [b_i, b_{i+1})),\quad p_i = \frac{f_i}{N}$$</td>
+                <td>Binned histograms and box plots comparing Normal vs Suspicious traffic distributions.</td>
+                <td>Tab 2</td>
+              </tr>
+              <tr>
+                <td><strong>Conditional Probability & Bayes' Theorem</strong></td>
+                <td>$$P(T \mid A) = \frac{P(A \mid T) P(T)}{P(A \mid T) P(T) + P(A \mid \neg T) P(\neg T)}$$</td>
+                <td>Interactive calculator illustrating how base rate $P(T)$ influences posterior alarm precision; explains the Base Rate Fallacy.</td>
+                <td>Tab 3</td>
+              </tr>
+              <tr>
+                <td><strong>Binomial Distribution</strong></td>
+                <td>$$P(X=k) = \binom{n}{k} p^k (1-p)^{n-k},\quad E[X]=np,\quad \text{Var}(X)=np(1-p)$$</td>
+                <td>Models the probability of encountering $k$ malicious packets in a sliding batch of $n$ incoming network queries.</td>
+                <td>Tab 3</td>
+              </tr>
+              <tr>
+                <td><strong>Poisson Arrival Process</strong></td>
+                <td>$$P(K=k) = \frac{\lambda^k e^{-\lambda}}{k!},\quad \text{VMR} = \frac{\sigma^2}{\mu}$$</td>
+                <td>Models query arrival rate $\lambda$ and computes Index of Dispersion to detect clustering and automated burst behavior.</td>
+                <td>Tab 3</td>
+              </tr>
+              <tr>
+                <td><strong>Exponential Distribution</strong></td>
+                <td>$$f(t) = \lambda e^{-\lambda t},\quad E[T] = \frac{1}{\lambda}$$</td>
+                <td>Models memoryless inter-arrival times of benign human queries versus non-exponential periodic tunneling beacons.</td>
+                <td>Tab 3</td>
+              </tr>
+              <tr>
+                <td><strong>Central Limit Theorem (CLT)</strong></td>
+                <td>$$\bar{X}_n \xrightarrow{d} \mathcal{N}\left(\mu, \frac{\sigma^2}{n}\right),\quad SE = \frac{\sigma}{\sqrt{n}}$$</td>
+                <td>Interactive Monte Carlo simulation drawing $N$ repeated samples of size $n$ showing convergence to a bell-shaped normal curve.</td>
+                <td>Tab 4</td>
+              </tr>
+              <tr>
+                <td><strong>Confidence Intervals</strong></td>
+                <td>$$\bar{x} \pm t_{\alpha/2, n-1} \cdot \frac{s}{\sqrt{n}}$$</td>
+                <td>Computes 90%, 95%, and 99% two-sided confidence intervals for population mean entropy and query length.</td>
+                <td>Tab 4</td>
+              </tr>
+              <tr>
+                <td><strong>Hypothesis Testing (t-Test)</strong></td>
+                <td>$$t = \frac{\bar{x}_1 - \bar{x}_2}{\sqrt{\frac{s_1^2}{n_1} + \frac{s_2^2}{n_2}}},\quad d = \frac{\bar{x}_1 - \bar{x}_2}{s_{\text{pooled}}}$$</td>
+                <td>Welch's two-sample t-test comparing Normal and Suspicious feature means; discusses Type I ($\alpha$) and Type II ($\beta$) errors.</td>
+                <td>Tab 5</td>
+              </tr>
+              <tr>
+                <td><strong>Chi-Square Test (χ²)</strong></td>
+                <td>$$\chi^2 = \sum \frac{(O_{ij} - E_{ij})^2}{E_{ij}},\quad df = (r-1)(c-1)$$</td>
+                <td>Contingency table testing independence between Query Length categories and Traffic classification label.</td>
+                <td>Tab 5</td>
+              </tr>
+              <tr>
+                <td><strong>One-Way ANOVA</strong></td>
+                <td>$$F = \frac{MS_B}{MS_W} = \frac{SS_B / (k-1)}{SS_W / (N-k)}$$</td>
+                <td>Tests whether mean Shannon entropy is significantly different across DNS Record Types (A, TXT, CNAME, etc.).</td>
+                <td>Tab 5</td>
+              </tr>
+              <tr>
+                <td><strong>Correlation & Linear Regression</strong></td>
+                <td>$$r = \frac{\sum (x-\bar{x})(y-\bar{y})}{\sqrt{\sum(x-\bar{x})^2 \sum(y-\bar{y})^2}},\quad \hat{y} = \beta_0 + \beta_1 x$$</td>
+                <td>Computes Pearson $r$, Spearman $\rho$, and OLS regression line modeling Entropy as a linear function of Query Length.</td>
+                <td>Tab 6</td>
+              </tr>
+              <tr>
+                <td><strong>Statistical Detection & Diagnostics</strong></td>
+                <td>$$\text{Sensitivity} = \frac{TP}{TP+FN},\quad \text{Precision} = \frac{TP}{TP+FP},\quad F_1 = \frac{2PR}{P+R}$$</td>
+                <td>Benchmarking Entropy-only, Timing-only, and Combined statistical detectors with confusion matrices and performance metrics.</td>
+                <td>Tab 7</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="app-footer">
+    <p><strong>Detection of DNS Tunneling Using Entropy and Timing Statistics</strong></p>
+    <p>Probability & Statistics College Course Project | Developed with Python 3, Flask, SciPy, NumPy, and Chart.js</p>
+  </footer>
+
+  <script src="/static/js/main.js"></script>
+</body>
+</html>

@@ -1,31 +1,39 @@
 /* 
-   Modern, Clean & Attractive Stylesheet
-   Theme: Sleek Dark Slate Header, Modern Indigo Accents, Airy & Uncluttered Layout
+   Beige & Grey/Black Minimalist Theme
+   Palette: Warm Beige (#f5f2eb), Deep Carbon Black (#18181b), Warm Stone Grey (#78716c)
+   Focus: Clean, spacious, non-congested, high-contrast readability
 */
 
 :root {
-  --primary-color: #4f46e5;       /* Modern Indigo */
-  --primary-hover: #4338ca;
-  --primary-light: #eef2ff;
-  --secondary-color: #0284c7;     /* Sky */
-  --bg-color: #f8fafc;            /* Crisp soft slate background */
-  --card-bg: #ffffff;
-  --text-main: #0f172a;           /* Dark slate text */
-  --text-muted: #64748b;          /* Muted slate */
-  --border-color: #e2e8f0;
-  --normal-color: #059669;        /* Clean emerald green */
-  --normal-bg: #ecfdf5;
-  --normal-border: #a7f3d0;
-  --suspicious-color: #dc2626;    /* Clean crimson red */
+  --bg-color: #f5f2eb;            /* Warm natural beige background */
+  --card-bg: #ffffff;             /* Crisp clean card background */
+  --card-subtle: #ede7dc;         /* Soft warm stone beige */
+  --border-color: #e2ded4;        /* Warm grey/stone border */
+  --border-hover: #cfc8bc;
+  --text-main: #18181b;           /* Carbon black */
+  --text-secondary: #44403c;      /* Stone charcoal */
+  --text-muted: #78716c;          /* Warm muted grey */
+  --primary-color: #18181b;       /* Black accent */
+  --primary-hover: #27272a;       /* Dark charcoal */
+  --primary-light: #ece7dc;       /* Soft beige highlight */
+  --secondary-color: #57534e;     /* Medium stone */
+  
+  --normal-color: #166534;        /* Deep forest sage green */
+  --normal-bg: #f0fdf4;
+  --normal-border: #bbf7d0;
+
+  --suspicious-color: #991b1b;    /* Warm brick red */
   --suspicious-bg: #fef2f2;
   --suspicious-border: #fecaca;
-  --info-bg: #f0fdf4;
-  --info-border: #bbf7d0;
-  --info-text: #166534;
+
+  --note-bg: #ede8de;             /* Beige callout */
+  --note-border: #18181b;         /* Black line */
+  --note-text: #1c1917;
+
   --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --radius: 10px;
-  --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.05);
-  --shadow-md: 0 4px 12px -2px rgba(15, 23, 42, 0.06);
+  --shadow-sm: 0 1px 3px rgba(24, 24, 27, 0.04);
+  --shadow-md: 0 4px 14px -2px rgba(24, 24, 27, 0.06);
 }
 
 * {
@@ -42,12 +50,12 @@ body {
   font-size: 14px;
 }
 
-/* Header: Centered, clean, only title */
+/* Header: Sleek Carbon Black, centered only title */
 .app-header {
-  background-color: #0f172a;
-  color: #ffffff;
+  background-color: #18181b;
+  color: #f5f2eb;
   padding: 24px 20px;
-  border-bottom: 1px solid #1e293b;
+  border-bottom: 1px solid #27272a;
   box-shadow: var(--shadow-sm);
 }
 
@@ -65,9 +73,9 @@ body {
   margin: 0;
 }
 
-/* Minimal Dataset Control Bar */
+/* Dataset Switcher Bar (Warm Beige & Stone) */
 .dataset-bar {
-  background-color: #ffffff;
+  background-color: #ede8de;
   border-bottom: 1px solid var(--border-color);
   padding: 10px 20px;
 }
@@ -91,7 +99,7 @@ body {
 .dataset-selector-group label {
   font-size: 0.85rem;
   font-weight: 600;
-  color: var(--text-muted);
+  color: var(--text-secondary);
 }
 
 .dataset-selector-group select {
@@ -111,14 +119,14 @@ body {
   border-color: var(--primary-color);
 }
 
-/* Tab Navigation */
+/* Tab Navigation (Warm Ivory & Black Underline) */
 .nav-tabs-wrapper {
   background-color: #ffffff;
   border-bottom: 1px solid var(--border-color);
   position: sticky;
   top: 0;
   z-index: 50;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  box-shadow: 0 1px 2px rgba(24, 24, 27, 0.03);
 }
 
 .nav-tabs {
@@ -146,7 +154,7 @@ body {
 
 .nav-tab-btn:hover {
   color: var(--primary-color);
-  background-color: var(--primary-light);
+  background-color: #f5f2eb;
 }
 
 .nav-tab-btn.active {
@@ -158,7 +166,7 @@ body {
 /* Main Container */
 .main-container {
   max-width: 1200px;
-  margin: 24px auto 48px auto;
+  margin: 28px auto 52px auto;
   padding: 0 16px;
 }
 
@@ -193,7 +201,7 @@ body {
 }
 
 .metric-label {
-  font-size: 0.76rem;
+  font-size: 0.75rem;
   text-transform: uppercase;
   color: var(--text-muted);
   font-weight: 600;
@@ -268,9 +276,9 @@ body {
 }
 
 .badge-info {
-  background-color: #eff6ff;
-  color: #1d4ed8;
-  border: 1px solid #bfdbfe;
+  background-color: #f5f2eb;
+  color: #27272a;
+  border: 1px solid var(--border-color);
 }
 
 /* Tables */
@@ -296,9 +304,9 @@ table.stats-table td {
 }
 
 table.stats-table th {
-  background-color: #f8fafc;
+  background-color: #ede7dc;
   font-weight: 600;
-  color: var(--text-muted);
+  color: var(--text-secondary);
 }
 
 table.stats-table tbody tr:last-child td {
@@ -306,7 +314,7 @@ table.stats-table tbody tr:last-child td {
 }
 
 table.stats-table tbody tr:hover {
-  background-color: #f8fafc;
+  background-color: #faf7f2;
 }
 
 table.stats-table td.numeric {
@@ -316,23 +324,30 @@ table.stats-table td.numeric {
   font-size: 0.83rem;
 }
 
-/* Clean Explanatory Note Cards */
+/* Explanatory Note Box (Warm Beige with Left Black Border) */
 .note-box {
-  background-color: #f8fafc;
-  border: 1px solid var(--border-color);
-  border-left: 4px solid var(--primary-color);
+  background-color: var(--note-bg);
+  border: 1px solid #ddd7cb;
+  border-left: 4px solid var(--note-border);
   padding: 14px 18px;
   margin-top: 18px;
   border-radius: 6px;
   font-size: 0.86rem;
-  color: var(--text-main);
+  color: var(--note-text);
   line-height: 1.6;
 }
 
 .note-box-title {
   font-weight: 600;
-  color: var(--primary-color);
+  color: var(--text-main);
   margin-bottom: 4px;
+}
+
+.subtle-tile {
+  background-color: #ede7dc;
+  padding: 16px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
 }
 
 /* Buttons */
@@ -353,7 +368,7 @@ table.stats-table td.numeric {
 
 .btn-primary {
   background-color: var(--primary-color);
-  color: #ffffff;
+  color: #f5f2eb;
 }
 
 .btn-primary:hover {
@@ -363,16 +378,16 @@ table.stats-table td.numeric {
 .btn-outline {
   background-color: #ffffff;
   color: var(--text-main);
-  border-color: var(--border-color);
+  border: 1px solid #d5cec2;
 }
 
 .btn-outline:hover {
-  background-color: #f1f5f9;
-  border-color: #cbd5e1;
+  background-color: #ede7dc;
+  border-color: #c7beaf;
 }
 
 .btn-sm {
-  padding: 5px 11px;
+  padding: 5px 12px;
   font-size: 0.8rem;
 }
 
@@ -422,7 +437,7 @@ select:focus {
 .controls-bar label {
   font-size: 0.84rem;
   font-weight: 600;
-  color: var(--text-muted);
+  color: var(--text-secondary);
 }
 
 /* Chart Box */
@@ -461,27 +476,27 @@ select:focus {
 }
 
 .cell-tp {
-  background-color: #ecfdf5;
-  border-color: #a7f3d0;
-  color: #065f46;
+  background-color: #f0fdf4;
+  border-color: #bbf7d0;
+  color: #166534;
 }
 
 .cell-tn {
-  background-color: #eff6ff;
-  border-color: #bfdbfe;
-  color: #1e40af;
+  background-color: #ede7dc;
+  border-color: #d6cfc2;
+  color: #18181b;
 }
 
 .cell-fp {
-  background-color: #fff1f2;
-  border-color: #fecdd3;
-  color: #9f1239;
+  background-color: #fef2f2;
+  border-color: #fecaca;
+  color: #991b1b;
 }
 
 .cell-fn {
-  background-color: #fff7ed;
-  border-color: #ffedd5;
-  color: #9a3412;
+  background-color: #fefce8;
+  border-color: #fef08a;
+  color: #854d0e;
 }
 
 .matrix-cell-title {
@@ -508,5 +523,5 @@ select:focus {
   font-size: 0.84rem;
   color: var(--text-muted);
   border-top: 1px solid var(--border-color);
-  background-color: #ffffff;
+  background-color: #ede8de;
 }

@@ -277,15 +277,15 @@ function renderHistogramChart(feature, histograms) {
         {
           label: 'Normal Traffic Frequency',
           data: normHist.counts,
-          backgroundColor: 'rgba(5, 150, 105, 0.7)',
-          borderColor: '#059669',
+          backgroundColor: 'rgba(87, 83, 78, 0.75)',
+          borderColor: '#44403c',
           borderWidth: 1
         },
         {
           label: 'Suspicious Traffic Frequency',
           data: suspHist.counts,
-          backgroundColor: 'rgba(220, 38, 38, 0.7)',
-          borderColor: '#dc2626',
+          backgroundColor: 'rgba(185, 28, 28, 0.75)',
+          borderColor: '#991b1b',
           borderWidth: 1
         }
       ]
@@ -370,8 +370,8 @@ function renderBinomialChart(binom) {
         {
           label: 'Probability P(X = k)',
           data: binom.pmf.slice(0, 16),
-          backgroundColor: 'rgba(79, 70, 229, 0.7)',
-          borderColor: '#4f46e5',
+          backgroundColor: 'rgba(24, 24, 27, 0.75)',
+          borderColor: '#18181b',
           borderWidth: 1
         }
       ]
@@ -508,16 +508,16 @@ function renderRegressionChart(reg) {
         {
           label: 'DNS Queries (Sample)',
           data: reg.scatter_points,
-          backgroundColor: 'rgba(79, 70, 229, 0.45)',
-          borderColor: '#4f46e5',
+          backgroundColor: 'rgba(87, 83, 78, 0.55)',
+          borderColor: '#292524',
           pointRadius: 3
         },
         {
           type: 'line',
           label: `Fitted OLS Line (y = ${reg.intercept} + ${reg.slope}x)`,
           data: reg.regression_line,
-          borderColor: '#dc2626',
-          borderWidth: 2,
+          borderColor: '#b91c1c',
+          borderWidth: 2.5,
           pointRadius: 0,
           fill: false
         }

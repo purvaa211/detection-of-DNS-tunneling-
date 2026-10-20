@@ -80,32 +80,6 @@
     <!-- SECTION 1: OVERVIEW -->
     <!-- ================================================================= -->
     <div id="tab-overview" class="tab-content active">
-      <div class="card">
-        <div class="card-header">
-          <div>
-            <h2 class="card-title">Dataset Overview & Statistical Variables</h2>
-            <div class="card-subtitle">Using DNS query traffic as a continuous statistical dataset</div>
-          </div>
-        </div>
-        <p style="margin-bottom: 12px; color: var(--text-muted);">
-          This project analyzes network domain queries through two primary statistical random variables to evaluate whether data is being tunneled or exfiltrated:
-        </p>
-        <div class="grid-2" style="margin-top: 14px;">
-          <div style="background:#f8fafc; padding:16px; border-radius:8px; border:1px solid var(--border-color);">
-            <div style="font-weight:600; color:var(--text-main); margin-bottom:6px;">1. Shannon Entropy (bits per character)</div>
-            <p style="font-size:0.86rem; color:var(--text-muted); line-height:1.5;">
-              Measures the informational randomness of characters. Legitimate domain names (such as google.com or wikipedia.org) follow standard English word patterns with lower entropy (around 2.0 to 3.4 bits). Encoded or suspicious queries (such as hex or base32 chunks) distribute characters more uniformly, yielding significantly higher entropy (around 4.0 to 4.9 bits).
-            </p>
-          </div>
-          <div style="background:#f8fafc; padding:16px; border-radius:8px; border:1px solid var(--border-color);">
-            <div style="font-weight:600; color:var(--text-main); margin-bottom:6px;">2. Inter-Arrival Time (seconds)</div>
-            <p style="font-size:0.86rem; color:var(--text-muted); line-height:1.5;">
-              Measures the time interval between consecutive queries. Normal human browsing creates variable, bursty intervals with natural idle gaps, whereas automated scripts or periodic beacons often generate rapid bursts or tightly clustered queries.
-            </p>
-          </div>
-        </div>
-      </div>
-
       <!-- Interactive Records Table -->
       <div class="card">
         <div class="card-header">
@@ -239,7 +213,7 @@
             <div class="grid-2" style="margin-bottom:12px;">
               <div class="metric-card" style="padding:14px;">
                 <div class="metric-label">P(Suspicious | Alarm)</div>
-                <div class="metric-value" id="bayes-posterior-val" style="color:var(--primary-color); font-size:1.45rem;">-</div>
+                <div class="metric-value" id="bayes-posterior-val" style="color:var(--text-main); font-size:1.45rem;">-</div>
                 <div class="metric-sub">Reliability of High Entropy Alarm</div>
               </div>
               <div class="metric-card" style="padding:14px;">
@@ -292,7 +266,7 @@
 
           <div class="metric-card" style="margin-bottom:16px; padding:16px;">
             <div class="metric-label">95% Confidence Interval for Mean Entropy</div>
-            <div class="metric-value" id="norm-ci95-val" style="font-size:1.3rem; color:var(--primary-color);">-</div>
+            <div class="metric-value" id="norm-ci95-val" style="font-size:1.3rem; color:var(--text-main);">-</div>
             <div class="metric-sub">Calculated using Student's t-distribution: Mean ± 1.96 × Standard Error</div>
           </div>
 
@@ -359,13 +333,13 @@
 
         <!-- Error Definitions -->
         <div class="grid-2" style="margin-top:16px;">
-          <div style="background:#f8fafc; padding:16px; border-radius:8px; border:1px solid var(--border-color);">
+          <div class="subtle-tile">
             <div style="font-weight:600; color:var(--text-main); margin-bottom:4px;">Type I Error (False Positive, alpha)</div>
             <p style="font-size:0.85rem; color:var(--text-muted); line-height:1.5;">
               Rejecting the null hypothesis when it is actually true (falsely accusing legitimate normal traffic of having anomalous characteristics).
             </p>
           </div>
-          <div style="background:#f8fafc; padding:16px; border-radius:8px; border:1px solid var(--border-color);">
+          <div class="subtle-tile">
             <div style="font-weight:600; color:var(--text-main); margin-bottom:4px;">Type II Error (False Negative, beta)</div>
             <p style="font-size:0.85rem; color:var(--text-muted); line-height:1.5;">
               Failing to reject the null hypothesis when an actual difference exists (failing to flag genuine tunneling traffic).
@@ -392,7 +366,7 @@
         <div class="grid-3" style="margin-bottom:18px;">
           <div class="metric-card">
             <div class="metric-label">Length vs Entropy Correlation</div>
-            <div class="metric-value" id="corr-len-ent" style="color:var(--primary-color);">-</div>
+            <div class="metric-value" id="corr-len-ent" style="color:var(--text-main);">-</div>
             <div class="metric-sub">Pearson correlation coefficient (r)</div>
           </div>
           <div class="metric-card">
@@ -412,7 +386,7 @@
           <div>
             <div class="metric-card" style="margin-bottom:14px;">
               <div class="metric-label">Coefficient of Determination (R²)</div>
-              <div class="metric-value" id="reg-r2" style="color:var(--secondary-color); font-size:1.4rem;">-</div>
+              <div class="metric-value" id="reg-r2" style="color:var(--text-main); font-size:1.4rem;">-</div>
               <div class="metric-sub">Proportion of variance explained by linear relationship</div>
             </div>
 

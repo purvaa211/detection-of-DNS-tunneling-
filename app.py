@@ -337,9 +337,9 @@ def get_probability_analysis():
     poisson_res = stats_engine.poisson_arrival_model(df, time_bucket_seconds=2.0)
     exponential_res = stats_engine.exponential_iat_model(df)
 
-    # 95% Confidence Interval for mean entropy & Normal distribution fit
-    ci_res = stats_engine.compute_confidence_intervals(df['entropy'])
-    zscore_res = stats_engine.z_score_and_normality_analysis(df['entropy'], 'entropy')
+    # 95% Confidence Interval for mean query length & Normal distribution fit
+    ci_res = stats_engine.compute_confidence_intervals(df['query_length'])
+    zscore_res = stats_engine.z_score_and_normality_analysis(df['query_length'], 'query_length')
 
     return jsonify({
         "status": "success",

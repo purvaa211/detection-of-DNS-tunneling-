@@ -56,12 +56,7 @@
       <div class="metric-card">
         <div class="metric-label">Suspicious Traffic</div>
         <div class="metric-value" style="color: var(--suspicious-color);" id="metric-suspicious-queries">-</div>
-        <div class="metric-sub">High-entropy / burst queries</div>
-      </div>
-      <div class="metric-card">
-        <div class="metric-label">Mean Shannon Entropy</div>
-        <div class="metric-value" id="metric-mean-entropy">-</div>
-        <div class="metric-sub">Average randomness (bits/char)</div>
+        <div class="metric-sub">Anomalous / burst queries</div>
       </div>
       <div class="metric-card">
         <div class="metric-label">Mean Query Length</div>
@@ -84,7 +79,7 @@
         <div class="card-header">
           <div>
             <h2 class="card-title">DNS Traffic Query Records</h2>
-            <div class="card-subtitle">Search and inspect domain names, character lengths, entropy, and arrival timings</div>
+            <div class="card-subtitle">Search and inspect domain names, character lengths, and arrival timings</div>
           </div>
           <div class="controls-bar">
             <input type="text" id="table-search" placeholder="Search domain..." style="width: 220px;">
@@ -104,13 +99,12 @@
                 <th>Domain Query Name</th>
                 <th>Record Type</th>
                 <th class="numeric">Length (chars)</th>
-                <th class="numeric">Entropy (bits)</th>
                 <th class="numeric">Inter-Arrival Time (s)</th>
                 <th>Classification</th>
               </tr>
             </thead>
             <tbody id="dns-records-tbody">
-              <tr><td colspan="7" style="text-align:center; padding: 20px;">Loading traffic records...</td></tr>
+              <tr><td colspan="6" style="text-align:center; padding: 20px;">Loading traffic records...</td></tr>
             </tbody>
           </table>
         </div>
@@ -138,8 +132,7 @@
           <div class="controls-bar">
             <label for="desc-feature-select">Select Feature:</label>
             <select id="desc-feature-select">
-              <option value="entropy">Shannon Entropy (bits/char)</option>
-              <option value="query_length">Query Length (characters)</option>
+              <option value="query_length" selected>Query Length (characters)</option>
               <option value="inter_arrival_time">Inter-Arrival Time (seconds)</option>
             </select>
           </div>
@@ -203,7 +196,7 @@
               • <strong>P(Suspicious):</strong> <span id="prob-p-suspicious" style="font-weight:600; color:var(--suspicious-color);">-</span>
             </div>
             <p style="font-size:0.86rem; color:var(--text-muted); line-height:1.6;">
-              When network monitoring flags a query with high character randomness, Bayes' theorem determines the probability that the query is truly suspicious versus a benign false alarm.
+              When network monitoring flags an anomalous domain query, Bayes' theorem determines the probability that the query is truly suspicious versus a benign false alarm.
             </p>
           </div>
 
@@ -213,7 +206,7 @@
               <div class="metric-card" style="padding:14px;">
                 <div class="metric-label">P(Suspicious | Alarm)</div>
                 <div class="metric-value" id="bayes-posterior-val" style="color:var(--text-main); font-size:1.45rem;">-</div>
-                <div class="metric-sub">Reliability of High Entropy Alarm</div>
+                <div class="metric-sub">Reliability of Detection Alarm</div>
               </div>
               <div class="metric-card" style="padding:14px;">
                 <div class="metric-label">P(Normal | No Alarm)</div>
@@ -259,18 +252,18 @@
           <div class="card-header">
             <div>
               <h2 class="card-title">Normal Distribution & Confidence Interval</h2>
-              <div class="card-subtitle">Empirical Rule check and 95% Confidence Interval for mean Shannon Entropy</div>
+              <div class="card-subtitle">Empirical Rule check and 95% Confidence Interval for mean Query Length</div>
             </div>
           </div>
 
           <div class="metric-card" style="margin-bottom:16px; padding:16px;">
-            <div class="metric-label">95% Confidence Interval for Mean Entropy</div>
+            <div class="metric-label">95% Confidence Interval for Mean Query Length</div>
             <div class="metric-value" id="norm-ci95-val" style="font-size:1.3rem; color:var(--text-main);">-</div>
             <div class="metric-sub">Calculated using Student's t-distribution: Mean ± 1.96 × Standard Error</div>
           </div>
 
           <div style="font-size:0.88rem; color:var(--text-muted); line-height:1.8; margin-bottom:12px;">
-            <strong>Empirical Rule Check (Shannon Entropy):</strong><br>
+            <strong>Empirical Rule Check (Query Length):</strong><br>
             • Within ±1 Standard Deviation: <strong id="norm-rule-1sd" style="color:var(--text-main);">-</strong> (Theoretical target: 68.3%)<br>
             • Within ±2 Standard Deviations: <strong id="norm-rule-2sd" style="color:var(--text-main);">-</strong> (Theoretical target: 95.4%)<br>
             • Within ±3 Standard Deviations: <strong id="norm-rule-3sd" style="color:var(--text-main);">-</strong> (Theoretical target: 99.7%)
@@ -327,7 +320,7 @@
         <!-- Statistical Conclusion -->
         <div class="note-box" style="margin-top:20px;">
           <div class="note-box-title">Statistical Conclusion:</div>
-          Because the calculated p-value is extremely small (p &lt; 0.0001), it is far below the significance threshold alpha = 0.05. Therefore, we <strong>reject the null hypothesis (H0)</strong>. This provides rigorous statistical evidence that the higher entropy and longer query lengths observed in suspicious traffic are statistically genuine differences and not random variation.
+          Because the calculated p-value is extremely small (p &lt; 0.0001), it is far below the significance threshold alpha = 0.05. Therefore, we <strong>reject the null hypothesis (H0)</strong>. This provides rigorous statistical evidence that the longer query lengths and bursty arrival intervals observed in suspicious traffic are statistically genuine differences and not random variation.
         </div>
 
         <!-- Error Definitions -->

@@ -66,7 +66,8 @@ async function loadDatasetInfo() {
     document.getElementById('metric-total-queries').textContent = data.total_queries.toLocaleString();
     document.getElementById('metric-normal-queries').textContent = `${data.normal_queries.toLocaleString()} (${data.normal_pct}%)`;
     document.getElementById('metric-suspicious-queries').textContent = `${data.suspicious_queries.toLocaleString()} (${data.suspicious_pct}%)`;
-    document.getElementById('metric-mean-entropy').textContent = `${data.mean_entropy} bits`;
+    const elEnt = document.getElementById('metric-mean-entropy');
+    if (elEnt) elEnt.textContent = `${data.mean_entropy} bits`;
     document.getElementById('metric-mean-length').textContent = `${data.mean_length} chars`;
     document.getElementById('metric-mean-iat').textContent = `${data.mean_iat_seconds} s`;
 
@@ -134,7 +135,6 @@ async function loadDatasetRecords() {
           <td><code style="font-size: 0.82rem; word-break: break-all;">${row.query}</code></td>
           <td><span class="badge badge-info">${row.record_type}</span></td>
           <td class="numeric">${row.query_length}</td>
-          <td class="numeric">${row.entropy.toFixed(4)}</td>
           <td class="numeric">${row.inter_arrival_time.toFixed(4)}</td>
           <td><span class="badge ${badgeClass}">${row.label}</span></td>
         `;
@@ -250,8 +250,8 @@ function updateDescriptiveView() {
 
   // Clean explanation text
   const diffPct = (((suspicious.mean - normal.mean) / normal.mean) * 100).toFixed(1);
-  const featName = feat === 'entropy' ? 'Shannon Entropy' : feat === 'query_length' ? 'Query Length' : 'Inter-Arrival Time';
-  const unit = feat === 'entropy' ? 'bits/char' : feat === 'query_length' ? 'characters' : 'seconds';
+  const featName = feat === 'query_length' ? 'Query Length' : feat === 'inter_arrival_time' ? 'Inter-Arrival Time' : 'Feature';
+  const unit = feat === 'query_length' ? 'characters' : feat === 'inter_arrival_time' ? 'seconds' : '';
 
   document.getElementById('desc-interpretation-text').innerHTML = `
     <strong>Statistical Takeaway:</strong><br>
@@ -343,9 +343,9 @@ async function loadProbabilityModels() {
     // Normal Fit & Confidence Interval
     const nf = data.normal_fit;
     if (nf && nf.ci_95) {
-      document.getElementById('norm-ci95-val').textContent = `[ ${nf.ci_95.lower_bound} , ${nf.ci_95.upper_bound} ] bits/char`;
+      document.getElementById('norm-ci95-val').textContent = `[ ${nf.ci_95.lower_bound} , ${nf.ci_95.upper_bound} ] chars`;
       document.getElementById('norm-ci-interpretation').innerHTML = `
-        We are 95% confident that the true population mean entropy of DNS queries lies between <strong>${nf.ci_95.lower_bound}</strong> and <strong>${nf.ci_95.upper_bound}</strong> bits per character (Margin of Error: ±${nf.ci_95.margin_of_error}).
+        We are 95% confident that the true population mean domain query length lies between <strong>${nf.ci_95.lower_bound}</strong> and <strong>${nf.ci_95.upper_bound}</strong> characters (Margin of Error: ±${nf.ci_95.margin_of_error}).
       `;
     }
     if (nf && nf.empirical_rule) {
@@ -401,7 +401,7 @@ async function loadHypothesisTests() {
     const tBody = document.getElementById('t-test-tbody');
     tBody.innerHTML = '';
 
-    ['entropy', 'query_length', 'inter_arrival_time'].forEach(feat => {
+    ['query_length', 'inter_arrival_time'].forEach(feat => {
       const t = ttests[feat];
       const tr = document.createElement('tr');
       const badgeClass = t.reject_h0_alpha_05 ? 'badge-suspicious' : 'badge-normal';
@@ -422,113 +422,6 @@ async function loadHypothesisTests() {
   } catch (err) {
     console.error("Failed to load hypothesis tests:", err);
   }
-}
-
-// =============================================================
-// 5. RESULTS & CONCLUSION (REGRESSION ONLY)
-// =============================================================
-
-async function loadResultsAndConclusion() {
-  try {
-    const resReg = await fetch('/api/stats/regression');
-    const dataReg = await resReg.json();
-    if (dataReg.status !== 'success') return;
-
-    const reg = dataReg.regression;
-
-    if (document.getElementById('corr-len-ent')) {
-      document.getElementById('corr-len-ent').textContent = `r = ${reg.pearson_r}`;
-    }
-    if (document.getElementById('reg-r2')) {
-      document.getElementById('reg-r2').textContent = `${(reg.r_squared * 100).toFixed(1)}% (R² = ${reg.r_squared})`;
-    }
-    if (document.getElementById('reg-equation')) {
-      document.getElementById('reg-equation').textContent = `Entropy = ${reg.intercept} + (${reg.slope} × Length)`;
-    }
-
-    const interpEl = document.getElementById('reg-interpretation-text');
-    if (interpEl) {
-      const outliersNote = reg.outliers_removed ? ` (${reg.outliers_removed} extreme residual outliers filtered for accuracy)` : '';
-      interpEl.innerHTML = `
-        <strong>Regression Model Performance:</strong><br>
-        • <strong>Linear Association:</strong> Pearson correlation <code>r = ${reg.pearson_r}</code> indicates a strong, positive linear relationship between domain length and character entropy.<br>
-        • <strong>Explained Variance:</strong> The coefficient of determination <code>R² = ${(reg.r_squared * 100).toFixed(1)}%</code> confirms that ${(reg.r_squared * 100).toFixed(1)}% of entropy variation is directly predicted by query length.<br>
-        • <strong>Accurate OLS Fit:</strong> The fitted line <code>Entropy = ${reg.intercept} + ${reg.slope} × Length</code> tightly captures the data distribution${outliersNote}.
-      `;
-    }
-
-    renderRegressionChart(reg);
-  } catch (err) {
-    console.error("Failed to load results and regression:", err);
-  }
-}
-
-// Backwards-compatibility alias
-const loadCorrelationAndResults = loadResultsAndConclusion;
-
-function renderRegressionChart(reg) {
-  destroyChart('regressionChart');
-  const canvas = document.getElementById('regressionChartCanvas');
-  if (!canvas) return;
-  const ctx = canvas.getContext('2d');
-
-  charts['regressionChart'] = new Chart(ctx, {
-    type: 'scatter',
-    data: {
-      datasets: [
-        {
-          label: 'DNS Queries (Sample Data)',
-          data: reg.scatter_points,
-          backgroundColor: 'rgba(87, 83, 78, 0.65)',
-          borderColor: '#292524',
-          pointRadius: 3.5,
-          pointHoverRadius: 5
-        },
-        {
-          type: 'line',
-          label: `Fitted OLS Line (y = ${reg.intercept} + ${reg.slope}x)`,
-          data: reg.regression_line,
-          borderColor: '#b91c1c',
-          borderWidth: 2.5,
-          pointRadius: 0,
-          fill: false,
-          tension: 0
-        }
-      ]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: {
-          position: 'top',
-          labels: {
-            font: { family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif', size: 12 }
-          }
-        },
-        tooltip: {
-          callbacks: {
-            label: function(context) {
-              if (context.dataset.type === 'line') return `Fitted Line: y = ${reg.intercept} + ${reg.slope}x`;
-              return `Length: ${context.parsed.x} chars, Entropy: ${context.parsed.y} bits`;
-            }
-          }
-        }
-      },
-      scales: {
-        x: {
-          title: { display: true, text: 'Domain Query Length (characters)', font: { weight: '600' } },
-          grid: { color: 'rgba(226, 222, 212, 0.6)' }
-        },
-        y: {
-          title: { display: true, text: 'Shannon Entropy (bits/char)', font: { weight: '600' } },
-          min: 1.5,
-          max: 6.0,
-          grid: { color: 'rgba(226, 222, 212, 0.6)' }
-        }
-      }
-    }
-  });
 }
 
 // Global initialization

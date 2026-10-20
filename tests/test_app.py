@@ -5,6 +5,7 @@ Integration tests for Flask application endpoints and API responses.
 import unittest
 import json
 import io
+import os
 from app import app
 
 
@@ -26,6 +27,7 @@ class TestAppEndpoints(unittest.TestCase):
         self.assertGreater(data['total_queries'], 0)
         self.assertIn('mean_entropy', data)
         self.assertIn('available_datasets', data)
+        self.assertIn('is_simulated', data)
 
     def test_dataset_records_endpoint(self):
         response = self.app.get('/api/dataset/records?page=1&page_size=10')
@@ -60,8 +62,8 @@ class TestAppEndpoints(unittest.TestCase):
         self.assertEqual(data['status'], 'success')
         self.assertIn('bayes_theorem', data)
         self.assertIn('binomial_batch', data)
-        self.assertIn('poisson_process', data)
-        self.assertIn('exponential_iat', data)
+        self.assertIn('empirical_probs', data)
+        self.assertIn('normal_fit', data)
 
     def test_sampling_clt_endpoint(self):
         payload = {
@@ -94,6 +96,7 @@ class TestAppEndpoints(unittest.TestCase):
         self.assertIn('regression', data)
         self.assertIn('pearson_r', data['regression'])
         self.assertIn('slope', data['regression'])
+        self.assertIn('pairwise_correlations', data['regression'])
 
     def test_detector_evaluate_endpoint(self):
         payload = {
@@ -131,12 +134,30 @@ class TestAppEndpoints(unittest.TestCase):
         self.assertEqual(res_data['status'], 'success')
 
         # Clean up test upload
-        import os
         test_path = os.path.join(app.config['UPLOAD_FOLDER'], 'test_upload.csv')
         if os.path.exists(test_path):
             os.remove(test_path)
         # Restore default
         self.app.post('/api/dataset/switch', json={"filename": "sample_dns_traffic.csv"})
+
+    def test_upload_empty_csv_validation(self):
+        data = {
+            'file': (io.BytesIO(b""), 'empty.csv')
+        }
+        response = self.app.post('/api/dataset/upload', data=data, content_type='multipart/form-data')
+        self.assertEqual(response.status_code, 400)
+        res_data = json.loads(response.data)
+        self.assertEqual(res_data['status'], 'error')
+
+    def test_upload_missing_query_column_validation(self):
+        bad_csv = "col1,col2\nval1,val2\nval3,val4\n"
+        data = {
+            'file': (io.BytesIO(bad_csv.encode('utf-8')), 'bad.csv')
+        }
+        response = self.app.post('/api/dataset/upload', data=data, content_type='multipart/form-data')
+        self.assertEqual(response.status_code, 400)
+        res_data = json.loads(response.data)
+        self.assertEqual(res_data['status'], 'error')
 
 
 if __name__ == '__main__':

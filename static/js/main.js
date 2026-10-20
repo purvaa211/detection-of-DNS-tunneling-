@@ -1,6 +1,7 @@
 /**
  * Main Frontend Application Script
- * Probability and Statistics DNS Tunneling Project
+ * Probability and Statistics DNS Project
+ * Simplified, Student-Friendly 5-Section Architecture
  */
 
 // Global Chart Instances to avoid canvas re-use errors
@@ -18,6 +19,7 @@ let currentPage = 1;
 const pageSize = 12;
 let currentSort = 'timestamp';
 let currentSortOrder = 'asc';
+let descriptiveCache = null;
 
 // Tab switching logic
 function initTabs() {
@@ -34,31 +36,26 @@ function initTabs() {
         targetContent.classList.add('active');
       }
 
-      // Trigger module-specific loads if first time
       onTabActivated(targetId);
     });
   });
 }
 
 function onTabActivated(tabId) {
-  if (tabId === 'tab-descriptive') {
+  if (tabId === 'tab-analysis') {
     loadDescriptiveStats();
   } else if (tabId === 'tab-probability') {
     loadProbabilityModels();
-  } else if (tabId === 'tab-sampling') {
-    loadSamplingCLT();
   } else if (tabId === 'tab-hypothesis') {
     loadHypothesisTests();
-  } else if (tabId === 'tab-regression') {
-    loadRegression();
-  } else if (tabId === 'tab-detector') {
-    loadDetectorBenchmark();
+  } else if (tabId === 'tab-correlation') {
+    loadCorrelationAndResults();
   }
 }
 
-// -------------------------------------------------------------
-// 1. Overview & Dataset Operations
-// -------------------------------------------------------------
+// =============================================================
+// 1. OVERVIEW & DATASET
+// =============================================================
 
 async function loadDatasetInfo() {
   try {
@@ -73,13 +70,28 @@ async function loadDatasetInfo() {
     document.getElementById('metric-mean-length').textContent = `${data.mean_length} chars`;
     document.getElementById('metric-mean-iat').textContent = `${data.mean_iat_seconds} s`;
 
-    // Populate dataset selector
+    const badge = document.getElementById('metric-dataset-badge');
+    if (badge) {
+      badge.textContent = data.is_simulated ? "Simulated sample data" : "Custom uploaded data";
+    }
+
+    // Populate dataset selector with friendly names
     const selector = document.getElementById('dataset-select');
     selector.innerHTML = '';
     data.available_datasets.forEach(name => {
       const opt = document.createElement('option');
       opt.value = name;
-      opt.textContent = name;
+      let label = name;
+      if (name === 'sample_dns_traffic.csv') {
+        label = 'Simulated Sample: Mixed Baseline (1,200 rows)';
+      } else if (name === 'sample_high_entropy_tunneling.csv') {
+        label = 'Simulated Sample: Attack Surge (700 rows)';
+      } else if (name === 'sample_normal_workday.csv') {
+        label = 'Simulated Sample: Routine Browsing (920 rows)';
+      } else {
+        label = `Custom CSV: ${name}`;
+      }
+      opt.textContent = label;
       if (name === data.dataset_name) opt.selected = true;
       selector.appendChild(opt);
     });
@@ -111,7 +123,7 @@ async function loadDatasetRecords() {
     const tbody = document.getElementById('dns-records-tbody');
     tbody.innerHTML = '';
 
-    if (data.records.length === 0) {
+    if (!data.records || data.records.length === 0) {
       tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding: 20px; color: #64748b;">No matching DNS queries found.</td></tr>`;
     } else {
       data.records.forEach(row => {
@@ -130,7 +142,6 @@ async function loadDatasetRecords() {
       });
     }
 
-    // Pagination info
     document.getElementById('page-info').textContent = `Page ${data.page} of ${data.total_pages} (${data.total_records} records)`;
     document.getElementById('btn-prev-page').disabled = (data.page <= 1);
     document.getElementById('btn-next-page').disabled = (data.page >= data.total_pages);
@@ -151,14 +162,13 @@ function initDatasetControls() {
     const data = await res.json();
     if (data.status === 'success') {
       currentPage = 1;
+      descriptiveCache = null;
       await loadDatasetInfo();
-      // Reload active tab
       const activeBtn = document.querySelector('.nav-tab-btn.active');
       if (activeBtn) onTabActivated(activeBtn.getAttribute('data-tab'));
     }
   });
 
-  // Search and filter
   document.getElementById('table-search')?.addEventListener('input', () => {
     currentPage = 1;
     loadDatasetRecords();
@@ -181,19 +191,25 @@ function initDatasetControls() {
     loadDatasetRecords();
   });
 
-  // Upload handler
+  // CSV Upload handler with friendly validation feedback
   const uploadForm = document.getElementById('upload-form');
   const uploadFile = document.getElementById('upload-file');
   const uploadStatus = document.getElementById('upload-status');
 
   uploadForm?.addEventListener('submit', async (e) => {
     e.preventDefault();
-    if (!uploadFile.files || uploadFile.files.length === 0) return;
+    if (!uploadFile.files || uploadFile.files.length === 0) {
+      uploadStatus.textContent = 'Please choose a CSV file first.';
+      uploadStatus.style.color = 'var(--suspicious-color)';
+      return;
+    }
 
     const formData = new FormData();
     formData.append('file', uploadFile.files[0]);
 
-    uploadStatus.textContent = 'Processing dataset and computing features...';
+    uploadStatus.textContent = 'Uploading and processing features...';
+    uploadStatus.style.color = 'var(--text-muted)';
+
     try {
       const res = await fetch('/api/dataset/upload', {
         method: 'POST',
@@ -201,34 +217,36 @@ function initDatasetControls() {
       });
       const data = await res.json();
       if (data.status === 'success') {
-        uploadStatus.textContent = `Uploaded and processed: ${data.dataset_name} (${data.rows} rows)`;
+        uploadStatus.textContent = `Success: Analyzed ${data.rows} records.`;
         uploadStatus.style.color = 'var(--normal-color)';
         currentPage = 1;
+        descriptiveCache = null;
         await loadDatasetInfo();
+        const activeBtn = document.querySelector('.nav-tab-btn.active');
+        if (activeBtn) onTabActivated(activeBtn.getAttribute('data-tab'));
       } else {
-        uploadStatus.textContent = `Error: ${data.message}`;
+        uploadStatus.textContent = `Upload Error: ${data.message}`;
         uploadStatus.style.color = 'var(--suspicious-color)';
       }
     } catch (err) {
-      uploadStatus.textContent = 'Upload failed. Please check CSV format.';
+      uploadStatus.textContent = 'Upload failed. Please ensure file is valid CSV.';
       uploadStatus.style.color = 'var(--suspicious-color)';
     }
   });
 }
 
-// -------------------------------------------------------------
-// 2. Descriptive Statistics
-// -------------------------------------------------------------
-
-let descriptiveDataCache = null;
+// =============================================================
+// 2. DATA ANALYSIS (DESCRIPTIVE STATISTICS)
+// =============================================================
 
 async function loadDescriptiveStats() {
   try {
-    const res = await fetch('/api/stats/descriptive');
-    const data = await res.json();
-    if (data.status !== 'success') return;
-    descriptiveDataCache = data.features;
-
+    if (!descriptiveCache) {
+      const res = await fetch('/api/stats/descriptive');
+      const data = await res.json();
+      if (data.status !== 'success') return;
+      descriptiveCache = data.features;
+    }
     updateDescriptiveView();
   } catch (err) {
     console.error("Failed to load descriptive stats:", err);
@@ -236,9 +254,9 @@ async function loadDescriptiveStats() {
 }
 
 function updateDescriptiveView() {
-  if (!descriptiveDataCache) return;
+  if (!descriptiveCache) return;
   const feat = document.getElementById('desc-feature-select').value;
-  const featData = descriptiveDataCache[feat];
+  const featData = descriptiveCache[feat];
   if (!featData) return;
 
   const normal = featData.descriptive.normal;
@@ -249,17 +267,13 @@ function updateDescriptiveView() {
     { label: "Sample Size (n)", n: normal.n, s: suspicious.n, o: overall.n, format: v => v },
     { label: "Mean (μ / x̄)", n: normal.mean, s: suspicious.mean, o: overall.mean, format: v => v.toFixed(4) },
     { label: "Median (Q2)", n: normal.median, s: suspicious.median, o: overall.median, format: v => v.toFixed(4) },
-    { label: "Mode", n: normal.mode, s: suspicious.mode, o: overall.mode, format: v => v.toFixed(4) },
     { label: "Sample Variance (s²)", n: normal.sample_variance, s: suspicious.sample_variance, o: overall.sample_variance, format: v => v.toFixed(4) },
     { label: "Sample Std Dev (s)", n: normal.sample_std, s: suspicious.sample_std, o: overall.sample_std, format: v => v.toFixed(4) },
-    { label: "Standard Error (SE = s/√n)", n: normal.standard_error, s: suspicious.standard_error, o: overall.standard_error, format: v => v.toFixed(4) },
     { label: "Coeff. of Variation (CV %)", n: normal.coefficient_of_variation_pct, s: suspicious.coefficient_of_variation_pct, o: overall.coefficient_of_variation_pct, format: v => v.toFixed(2) + '%' },
     { label: "1st Quartile (Q1)", n: normal.q1, s: suspicious.q1, o: overall.q1, format: v => v.toFixed(4) },
     { label: "3rd Quartile (Q3)", n: normal.q3, s: suspicious.q3, o: overall.q3, format: v => v.toFixed(4) },
     { label: "Interquartile Range (IQR)", n: normal.iqr, s: suspicious.iqr, o: overall.iqr, format: v => v.toFixed(4) },
-    { label: "Min / Max / Range", n: `${normal.min} / ${normal.max}`, s: `${suspicious.min} / ${suspicious.max}`, o: `${overall.min} / ${overall.max}`, format: v => v },
-    { label: "Skewness", n: normal.skewness, s: suspicious.skewness, o: overall.skewness, format: v => v.toFixed(4) },
-    { label: "Kurtosis (Excess)", n: normal.kurtosis, s: suspicious.kurtosis, o: overall.kurtosis, format: v => v.toFixed(4) }
+    { label: "Minimum & Maximum", n: `${normal.min} to ${normal.max}`, s: `${suspicious.min} to ${suspicious.max}`, o: `${overall.min} to ${overall.max}`, format: v => v }
   ];
 
   const tbody = document.getElementById('desc-stats-tbody');
@@ -275,19 +289,18 @@ function updateDescriptiveView() {
     tbody.appendChild(tr);
   });
 
-  // Render Histogram
   renderHistogramChart(feat, featData.histograms);
 
-  // Update plain-English explanation
+  // Viva Explanation
   const diffPct = (((suspicious.mean - normal.mean) / normal.mean) * 100).toFixed(1);
   const featName = feat === 'entropy' ? 'Shannon Entropy' : feat === 'query_length' ? 'Query Length' : 'Inter-Arrival Time';
   const unit = feat === 'entropy' ? 'bits/char' : feat === 'query_length' ? 'characters' : 'seconds';
 
   document.getElementById('desc-interpretation-text').innerHTML = `
-    <strong>Statistical Takeaway for ${featName}:</strong><br>
-    • <strong>Mean Difference:</strong> Normal traffic averages <code>${normal.mean} ${unit}</code> (std: ${normal.sample_std}), whereas Suspicious/Tunneling traffic averages <code>${suspicious.mean} ${unit}</code> (std: ${suspicious.sample_std}), representing a <strong>${Math.abs(diffPct)}% ${diffPct >= 0 ? 'increase' : 'decrease'}</strong>.<br>
-    • <strong>Dispersion (CV):</strong> Normal CV is <code>${normal.coefficient_of_variation_pct}%</code> vs Suspicious CV <code>${suspicious.coefficient_of_variation_pct}%</code>. Lower CV indicates tighter clustering.<br>
-    • <strong>Skewness:</strong> Normal skewness is <code>${normal.skewness}</code> (${normal.skewness > 0 ? 'right-skewed' : 'left-skewed'}), while Suspicious skewness is <code>${suspicious.skewness}</code>.
+    <strong>Viva Explanation for ${featName}:</strong><br>
+    • <strong>Central Tendency:</strong> Normal queries average <code>${normal.mean} ${unit}</code>, while suspicious queries average <code>${suspicious.mean} ${unit}</code> (a <strong>${Math.abs(diffPct)}% ${diffPct >= 0 ? 'increase' : 'decrease'}</strong>).<br>
+    • <strong>Variability (CV):</strong> Normal CV is <code>${normal.coefficient_of_variation_pct}%</code> vs suspicious CV <code>${suspicious.coefficient_of_variation_pct}%</code>. A lower CV indicates tighter clustering around the mean, while a higher CV indicates greater relative dispersion.<br>
+    • <strong>Distribution Separation:</strong> The histogram confirms that the two groups occupy distinct regions of the frequency distribution, making ${featName} a valuable statistical differentiator.
   `;
 }
 
@@ -297,8 +310,6 @@ function renderHistogramChart(feature, histograms) {
 
   const normHist = histograms.normal;
   const suspHist = histograms.suspicious;
-
-  // Use common bin labels
   const labels = normHist.labels.length >= suspHist.labels.length ? normHist.labels : suspHist.labels;
 
   charts['descHistogram'] = new Chart(ctx, {
@@ -307,16 +318,16 @@ function renderHistogramChart(feature, histograms) {
       labels: labels,
       datasets: [
         {
-          label: 'Normal Traffic (Frequency)',
+          label: 'Normal Traffic Frequency',
           data: normHist.counts,
-          backgroundColor: 'rgba(16, 185, 129, 0.65)',
+          backgroundColor: 'rgba(5, 150, 105, 0.65)',
           borderColor: '#059669',
           borderWidth: 1
         },
         {
-          label: 'Suspicious / Tunneling (Frequency)',
+          label: 'Suspicious Traffic Frequency',
           data: suspHist.counts,
-          backgroundColor: 'rgba(239, 68, 68, 0.65)',
+          backgroundColor: 'rgba(220, 38, 38, 0.65)',
           borderColor: '#dc2626',
           borderWidth: 1
         }
@@ -330,29 +341,22 @@ function renderHistogramChart(feature, histograms) {
         tooltip: { mode: 'index', intersect: false }
       },
       scales: {
-        x: {
-          title: { display: true, text: `${feature.replace('_', ' ').toUpperCase()} Bins` }
-        },
-        y: {
-          title: { display: true, text: 'Query Count (Frequency)' },
-          beginAtZero: true
-        }
+        x: { title: { display: true, text: `${feature.replace('_', ' ').toUpperCase()} Bins` } },
+        y: { title: { display: true, text: 'Query Count (Frequency)' }, beginAtZero: true }
       }
     }
   });
 }
 
-// -------------------------------------------------------------
-// 3. Probability & Distributions
-// -------------------------------------------------------------
+// =============================================================
+// 3. PROBABILITY & DISTRIBUTIONS
+// =============================================================
 
 async function loadProbabilityModels() {
   const prior = parseFloat(document.getElementById('bayes-prior-slider').value);
   const sens = parseFloat(document.getElementById('bayes-sens-slider').value);
   const fpr = parseFloat(document.getElementById('bayes-fpr-slider').value);
-
   const nBatch = parseInt(document.getElementById('binom-n-slider').value);
-  const pBatch = parseFloat(document.getElementById('binom-p-slider').value);
 
   try {
     const res = await fetch('/api/stats/probability', {
@@ -362,31 +366,44 @@ async function loadProbabilityModels() {
         prior_tunnel: prior,
         sensitivity: sens,
         fpr: fpr,
-        n_batch: nBatch,
-        p_batch: pBatch
+        n_batch: nBatch
       })
     });
     const data = await res.json();
     if (data.status !== 'success') return;
 
-    // 1. Bayes' Theorem UI
+    // Empirical Base Rates
+    const ep = data.empirical_probs;
+    document.getElementById('prob-p-normal').textContent = `${ep.p_normal} (${(ep.p_normal * 100).toFixed(1)}%, n=${ep.normal_count})`;
+    document.getElementById('prob-p-suspicious').textContent = `${ep.p_suspicious} (${(ep.p_suspicious * 100).toFixed(1)}%, n=${ep.suspicious_count})`;
+
+    // Bayes' Theorem
     const bayes = data.bayes_theorem;
     document.getElementById('bayes-posterior-val').textContent = `${bayes.posterior_pct}%`;
-    document.getElementById('bayes-marginal-val').textContent = `${(bayes.marginal_p_alarm * 100).toFixed(2)}%`;
-    document.getElementById('bayes-npv-val').textContent = `${(bayes.posterior_normal_given_no_alarm * 100).toFixed(2)}%`;
-    document.getElementById('bayes-note-text').textContent = bayes.base_rate_fallacy_note;
+    document.getElementById('bayes-npv-val').textContent = `${(bayes.posterior_normal_given_no_alarm * 100).toFixed(1)}%`;
+    document.getElementById('bayes-note-text').innerHTML = `
+      <strong>The Base Rate Fallacy:</strong> Even with high sensitivity (${(bayes.sensitivity * 100).toFixed(0)}%), if the true prior rate of suspicious queries is small (${(bayes.prior_tunnel * 100).toFixed(1)}%), the probability of a true positive given an alarm is <strong>${bayes.posterior_pct}%</strong> because the overwhelming volume of normal queries generates false alarms.
+    `;
 
-    // 2. Binomial Distribution Chart
+    // Binomial Distribution
     const binom = data.binomial_batch;
-    document.getElementById('binom-mean-val').textContent = `E[X] = ${binom.mean}`;
-    document.getElementById('binom-var-val').textContent = `Var(X) = ${binom.variance} (σ = ${binom.std_dev})`;
+    document.getElementById('binom-mean-val').textContent = `Expected Value E[X] = np = ${binom.mean}`;
+    document.getElementById('binom-var-val').textContent = `Variance Var(X) = ${binom.variance} (σ = ${binom.std_dev})`;
     renderBinomialChart(binom);
 
-    // 3. Poisson Arrival Chart
-    renderPoissonChart(data.poisson_process);
-
-    // 4. Exponential IAT Chart
-    renderExponentialChart(data.exponential_iat);
+    // Normal Fit & Confidence Interval
+    const nf = data.normal_fit;
+    if (nf && nf.ci_95) {
+      document.getElementById('norm-ci95-val').textContent = `[ ${nf.ci_95.lower_bound} , ${nf.ci_95.upper_bound} ] bits`;
+      document.getElementById('norm-ci-interpretation').innerHTML = `
+        <strong>Viva Interpretation:</strong> We are 95% confident that the true population mean entropy of DNS queries lies between <strong>${nf.ci_95.lower_bound}</strong> and <strong>${nf.ci_95.upper_bound}</strong> bits per character (Margin of Error: ±${nf.ci_95.margin_of_error}).
+      `;
+    }
+    if (nf && nf.empirical_rule) {
+      document.getElementById('norm-rule-1sd').textContent = `${nf.empirical_rule.within_1_sigma_pct}%`;
+      document.getElementById('norm-rule-2sd').textContent = `${nf.empirical_rule.within_2_sigma_pct}%`;
+      document.getElementById('norm-rule-3sd').textContent = `${nf.empirical_rule.within_3_sigma_pct}%`;
+    }
   } catch (err) {
     console.error("Failed to load probability models:", err);
   }
@@ -402,226 +419,11 @@ function renderBinomialChart(binom) {
       labels: binom.k_values,
       datasets: [
         {
-          type: 'bar',
           label: 'P(X = k) [PMF]',
           data: binom.pmf,
-          backgroundColor: 'rgba(59, 130, 246, 0.65)',
-          borderColor: '#2563eb',
-          borderWidth: 1,
-          yAxisID: 'y'
-        },
-        {
-          type: 'line',
-          label: 'P(X ≤ k) [CDF]',
-          data: binom.cdf,
-          borderColor: '#f59e0b',
-          backgroundColor: '#f59e0b',
-          borderWidth: 2,
-          pointRadius: 2,
-          yAxisID: 'y1'
-        }
-      ]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      scales: {
-        x: { title: { display: true, text: 'Number of Tunneling Queries (k) in batch n' } },
-        y: { title: { display: true, text: 'Probability P(X = k)' }, beginAtZero: true, max: 1.0 },
-        y1: { position: 'right', title: { display: true, text: 'Cumulative P(X ≤ k)' }, beginAtZero: true, max: 1.0, grid: { drawOnChartArea: false } }
-      }
-    }
-  });
-}
-
-function renderPoissonChart(poisson) {
-  if (!poisson || !poisson.k_vals) return;
-  destroyChart('poissonChart');
-  const ctx = document.getElementById('poissonChartCanvas').getContext('2d');
-
-  document.getElementById('poisson-vmr-text').innerHTML = `
-    <strong>Poisson Arrival Modeling:</strong><br>
-    Estimated arrival rate: <code>λ = ${poisson.estimated_lambda} arrivals / ${poisson.time_bucket_seconds}s bucket</code>. 
-    Index of Dispersion (Variance/Mean Ratio): <code>${poisson.dispersion_ratio_vmr}</code>.<br>
-    <em>${poisson.interpretation}</em>
-  `;
-
-  charts['poissonChart'] = new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels: poisson.k_vals,
-      datasets: [
-        {
-          label: 'Observed Empirical Frequency',
-          data: poisson.empirical_frequencies,
-          backgroundColor: 'rgba(100, 116, 139, 0.6)',
-          borderColor: '#475569',
-          borderWidth: 1
-        },
-        {
-          type: 'line',
-          label: 'Theoretical Poisson PMF',
-          data: poisson.theoretical_poisson,
-          borderColor: '#2563eb',
-          backgroundColor: '#2563eb',
-          borderWidth: 2,
-          tension: 0.2
-        }
-      ]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      scales: {
-        x: { title: { display: true, text: 'Arrivals per Time Bucket (k)' } },
-        y: { title: { display: true, text: 'Probability' }, beginAtZero: true }
-      }
-    }
-  });
-}
-
-function renderExponentialChart(expData) {
-  if (!expData || !expData.Normal) return;
-  destroyChart('exponentialChart');
-  const ctx = document.getElementById('exponentialChartCanvas').getContext('2d');
-
-  const norm = expData.Normal;
-  const susp = expData.Suspicious;
-
-  charts['exponentialChart'] = new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels: norm.midpoints,
-      datasets: [
-        {
-          label: 'Normal IAT (Empirical)',
-          data: norm.empirical,
-          borderColor: '#059669',
-          borderWidth: 2,
-          tension: 0.2
-        },
-        {
-          label: 'Normal Fitted Exponential PDF',
-          data: norm.theoretical_exponential,
-          borderColor: '#059669',
-          borderDash: [5, 5],
-          borderWidth: 2,
-          pointRadius: 0
-        },
-        ...(susp ? [
-          {
-            label: 'Suspicious IAT (Empirical)',
-            data: susp.empirical,
-            borderColor: '#dc2626',
-            borderWidth: 2,
-            tension: 0.2
-          }
-        ] : [])
-      ]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      scales: {
-        x: { title: { display: true, text: 'Inter-Arrival Time (seconds)' } },
-        y: { title: { display: true, text: 'Relative Frequency / PDF' }, beginAtZero: true }
-      }
-    }
-  });
-}
-
-// -------------------------------------------------------------
-// 4. Sampling & Central Limit Theorem
-// -------------------------------------------------------------
-
-async function loadSamplingCLT() {
-  const feat = document.getElementById('clt-feature-select').value;
-  const sampleN = parseInt(document.getElementById('clt-n-slider').value);
-  const numSamplesN = parseInt(document.getElementById('clt-reps-slider').value);
-
-  try {
-    const res = await fetch('/api/stats/sampling', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        feature: feat,
-        sample_size_n: sampleN,
-        num_samples_N: numSamplesN
-      })
-    });
-    const data = await res.json();
-    if (data.status !== 'success') return;
-
-    // Render CLT Histogram
-    renderCLTHistogram(data.clt_simulation);
-
-    // Update CLT Stats Callout
-    const sim = data.clt_simulation;
-    document.getElementById('clt-stats-box').innerHTML = `
-      <strong>Central Limit Theorem Simulation Results (N = ${sim.num_samples_N} repeated samples of size n = ${sim.sample_size_n}):</strong><br>
-      • Population Mean (μ): <code>${sim.population_mean}</code> | Empirical Mean of Means: <code>${sim.empirical_mean_of_means}</code><br>
-      • Theoretical Standard Error (σ / √n): <code>${sim.theoretical_standard_error}</code> | Empirical SE (s_x̄): <code>${sim.empirical_standard_error}</code><br>
-      <em>${sim.clt_conclusion}</em>
-    `;
-
-    // Confidence Intervals Table
-    const ciTableBody = document.getElementById('ci-tbody');
-    ciTableBody.innerHTML = '';
-    const cis = data.confidence_intervals.confidence_intervals;
-    Object.keys(cis).forEach(key => {
-      const item = cis[key];
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td><strong>${key}</strong></td>
-        <td class="numeric">${item.t_critical}</td>
-        <td class="numeric">±${item.margin_of_error}</td>
-        <td class="numeric">[${item.lower_bound}, ${item.upper_bound}]</td>
-        <td><small>${item.interpretation}</small></td>
-      `;
-      ciTableBody.appendChild(tr);
-    });
-
-    // Z-Score Normality Test Card
-    const zscore = data.zscore_and_normality;
-    document.getElementById('normality-box').innerHTML = `
-      <strong>Empirical Rule & Normality Check for ${zscore.feature.toUpperCase()}:</strong><br>
-      • Within ±1σ: <code>${zscore.empirical_rule.within_1_sigma_pct}%</code> (Theoretical: 68.27%)<br>
-      • Within ±2σ: <code>${zscore.empirical_rule.within_2_sigma_pct}%</code> (Theoretical: 95.45%)<br>
-      • Within ±3σ: <code>${zscore.empirical_rule.within_3_sigma_pct}%</code> (Theoretical: 99.73%)<br>
-      • Extreme Outliers (|Z| > 3): <code>${zscore.outliers_count_abs_z_gt_3}</code> queries<br>
-      • D'Agostino-Pearson Test: <code>p-value = ${zscore.dagostino_p_value.toExponential(4)}</code>. <em>${zscore.interpretation}</em>
-    `;
-  } catch (err) {
-    console.error("Failed to load CLT:", err);
-  }
-}
-
-function renderCLTHistogram(clt) {
-  destroyChart('cltChart');
-  const ctx = document.getElementById('cltChartCanvas').getContext('2d');
-  const hist = clt.clt_histogram;
-
-  charts['cltChart'] = new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels: hist.labels,
-      datasets: [
-        {
-          type: 'bar',
-          label: `Sample Means Frequency (n = ${clt.sample_size_n})`,
-          data: hist.relative_frequencies,
-          backgroundColor: 'rgba(59, 130, 246, 0.6)',
+          backgroundColor: 'rgba(37, 99, 235, 0.65)',
           borderColor: '#2563eb',
           borderWidth: 1
-        },
-        {
-          type: 'line',
-          label: 'Theoretical Normal Bell Curve N(μ, σ²/n)',
-          data: hist.theoretical_normal_curve,
-          borderColor: '#dc2626',
-          borderWidth: 2,
-          pointRadius: 2,
-          tension: 0.3
         }
       ]
     },
@@ -629,16 +431,16 @@ function renderCLTHistogram(clt) {
       responsive: true,
       maintainAspectRatio: false,
       scales: {
-        x: { title: { display: true, text: 'Sample Mean Values (x̄)' } },
-        y: { title: { display: true, text: 'Relative Frequency' }, beginAtZero: true }
+        x: { title: { display: true, text: `Number of Suspicious Queries (k) in batch n=${binom.n}` } },
+        y: { title: { display: true, text: 'Probability P(X = k)' }, beginAtZero: true }
       }
     }
   });
 }
 
-// -------------------------------------------------------------
-// 5. Hypothesis Testing & ANOVA
-// -------------------------------------------------------------
+// =============================================================
+// 4. HYPOTHESIS TESTING
+// =============================================================
 
 async function loadHypothesisTests() {
   try {
@@ -646,7 +448,6 @@ async function loadHypothesisTests() {
     const data = await res.json();
     if (data.status !== 'success') return;
 
-    // Two-Sample t-tests
     const ttests = data.two_sample_t_tests;
     const tBody = document.getElementById('t-test-tbody');
     tBody.innerHTML = '';
@@ -663,84 +464,91 @@ async function loadHypothesisTests() {
         <td class="numeric">${t.group2.mean}</td>
         <td class="numeric">${t.t_statistic}</td>
         <td class="numeric">${t.degrees_of_freedom}</td>
-        <td class="numeric">${t.p_value.toExponential(4)}</td>
+        <td class="numeric">${t.p_value < 0.0001 ? '< 0.0001' : t.p_value.toFixed(4)}</td>
         <td class="numeric">${t.cohens_d}</td>
         <td><span class="badge ${badgeClass}">${verdict}</span></td>
       `;
       tBody.appendChild(tr);
     });
-
-    // Chi-Square Test
-    const chi = data.chi_square_test;
-    const chiObsBody = document.getElementById('chi-observed-tbody');
-    chiObsBody.innerHTML = '';
-    chi.categories.forEach((cat, idx) => {
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td><strong>${cat}</strong></td>
-        <td class="numeric">${chi.observed.Normal[idx]} (Exp: ${chi.expected.Normal[idx]})</td>
-        <td class="numeric">${chi.observed.Suspicious[idx]} (Exp: ${chi.expected.Suspicious[idx]})</td>
-      `;
-      chiObsBody.appendChild(tr);
-    });
-
-    document.getElementById('chi-stat-val').textContent = `χ² = ${chi.chi2_statistic} (df = ${chi.degrees_of_freedom}, p = ${chi.p_value.toExponential(4)})`;
-    document.getElementById('chi-conclusion-text').textContent = chi.conclusion;
-
-    // ANOVA Test
-    const anova = data.one_way_anova.entropy_by_record_type;
-    const anovaBody = document.getElementById('anova-tbody');
-    anovaBody.innerHTML = `
-      <tr>
-        <td><strong>Between Groups (Record Types)</strong></td>
-        <td class="numeric">${anova.ss_between}</td>
-        <td class="numeric">${anova.df_between}</td>
-        <td class="numeric">${anova.ms_between}</td>
-        <td class="numeric" rowspan="2"><strong>${anova.f_statistic}</strong></td>
-        <td class="numeric" rowspan="2"><strong>${anova.p_value.toExponential(4)}</strong></td>
-      </tr>
-      <tr>
-        <td><strong>Within Groups (Residuals)</strong></td>
-        <td class="numeric">${anova.ss_within}</td>
-        <td class="numeric">${anova.df_within}</td>
-        <td class="numeric">${anova.ms_within}</td>
-      </tr>
-      <tr>
-        <td><strong>Total</strong></td>
-        <td class="numeric">${anova.ss_total}</td>
-        <td class="numeric">${anova.df_between + anova.df_within}</td>
-        <td class="numeric">-</td>
-        <td class="numeric">-</td>
-        <td class="numeric">-</td>
-      </tr>
-    `;
-    document.getElementById('anova-conclusion-text').textContent = anova.conclusion;
-
   } catch (err) {
     console.error("Failed to load hypothesis tests:", err);
   }
 }
 
-// -------------------------------------------------------------
-// 6. Correlation & Linear Regression
-// -------------------------------------------------------------
+// =============================================================
+// 5. CORRELATION & RESULTS
+// =============================================================
 
-async function loadRegression() {
+async function loadCorrelationAndResults() {
+  const entropyThresh = parseFloat(document.getElementById('det-entropy-slider').value);
+  const iatThresh = parseFloat(document.getElementById('det-iat-slider').value);
+
   try {
-    const res = await fetch('/api/stats/regression');
-    const data = await res.json();
-    if (data.status !== 'success') return;
+    // 1. Fetch Correlation & Regression
+    const resReg = await fetch('/api/stats/regression');
+    const dataReg = await resReg.json();
+    if (dataReg.status === 'success') {
+      const reg = dataReg.regression;
+      if (reg.pairwise_correlations) {
+        document.getElementById('corr-len-ent').textContent = `r = ${reg.pairwise_correlations.length_entropy}`;
+        document.getElementById('corr-len-iat').textContent = `r = ${reg.pairwise_correlations.length_iat}`;
+        document.getElementById('corr-ent-iat').textContent = `r = ${reg.pairwise_correlations.entropy_iat}`;
+      }
+      document.getElementById('reg-r2').textContent = `${(reg.r_squared * 100).toFixed(1)}% (R² = ${reg.r_squared})`;
+      document.getElementById('reg-equation').textContent = `Entropy = ${reg.intercept} + (${reg.slope} × Length)`;
+      document.getElementById('reg-interpretation-text').innerHTML = `
+        <strong>Viva Interpretation:</strong><br>
+        • <strong>Pearson r = ${reg.pearson_r}:</strong> Indicates a ${reg.pearson_r > 0.6 ? 'strong positive' : 'moderate'} linear correlation. As query length increases, Shannon entropy also increases because encoded payloads introduce diverse character sets.<br>
+        • <strong>R² = ${(reg.r_squared * 100).toFixed(1)}%:</strong> ${(reg.r_squared * 100).toFixed(1)}% of the total variation in Shannon entropy can be explained by query length.
+      `;
 
-    const reg = data.regression;
-    document.getElementById('reg-pearson-r').textContent = reg.pearson_r;
-    document.getElementById('reg-spearman-rho').textContent = reg.spearman_rho;
-    document.getElementById('reg-r2').textContent = `${(reg.r_squared * 100).toFixed(1)}% (${reg.r_squared})`;
-    document.getElementById('reg-equation').textContent = `Entropy = ${reg.intercept} + (${reg.slope} × QueryLength)`;
-    document.getElementById('reg-interpretation-text').textContent = reg.interpretation;
+      renderRegressionChart(reg);
+    }
 
-    renderRegressionChart(reg);
+    // 2. Fetch Supporting Detection Benchmark
+    const resDet = await fetch('/api/detector/evaluate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        entropy_threshold: entropyThresh,
+        iat_threshold: iatThresh,
+        length_threshold: 40
+      })
+    });
+    const dataDet = await resDet.json();
+    if (dataDet.status === 'success') {
+      const b = dataDet.benchmark.detectors;
+
+      // Update Confusion Matrix for Combined
+      const cm = b.combined.results.confusion_matrix;
+      document.getElementById('cm-combined-tp').textContent = cm.tp;
+      document.getElementById('cm-combined-fp').textContent = cm.fp;
+      document.getElementById('cm-combined-fn').textContent = cm.fn;
+      document.getElementById('cm-combined-tn').textContent = cm.tn;
+
+      // Update Table
+      const tbody = document.getElementById('det-metrics-tbody');
+      tbody.innerHTML = '';
+      const list = [
+        { name: "Entropy-Only", obj: b.entropy_only },
+        { name: "Timing-Only", obj: b.timing_only },
+        { name: "Combined Detector", obj: b.combined }
+      ];
+      list.forEach(item => {
+        const m = item.obj.results.metrics;
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td><strong>${item.name}</strong></td>
+          <td class="numeric">${m.detection_rate_pct}%</td>
+          <td class="numeric" style="color: ${m.false_positive_rate_pct > 5 ? 'var(--suspicious-color)' : 'var(--text-main)'};">${m.false_positive_rate_pct}%</td>
+          <td class="numeric">${m.precision_pct}%</td>
+          <td class="numeric"><strong>${m.accuracy_pct}%</strong></td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
   } catch (err) {
-    console.error("Failed to load regression:", err);
+    console.error("Failed to load correlation and results:", err);
   }
 }
 
@@ -755,13 +563,13 @@ function renderRegressionChart(reg) {
         {
           label: 'DNS Queries (Sample)',
           data: reg.scatter_points,
-          backgroundColor: 'rgba(59, 130, 246, 0.45)',
+          backgroundColor: 'rgba(37, 99, 235, 0.45)',
           borderColor: '#2563eb',
           pointRadius: 3
         },
         {
           type: 'line',
-          label: `OLS Fitted Line: y = ${reg.intercept} + ${reg.slope}x`,
+          label: `Fitted OLS Line (y = ${reg.intercept} + ${reg.slope}x)`,
           data: reg.regression_line,
           borderColor: '#dc2626',
           borderWidth: 2,
@@ -774,144 +582,8 @@ function renderRegressionChart(reg) {
       responsive: true,
       maintainAspectRatio: false,
       scales: {
-        x: { title: { display: true, text: 'Query Length (Characters)' } },
+        x: { title: { display: true, text: 'Query Length (characters)' } },
         y: { title: { display: true, text: 'Shannon Entropy (bits/char)' }, min: 1.0, max: 6.0 }
-      }
-    }
-  });
-}
-
-// -------------------------------------------------------------
-// 7. Statistical Detection Module & Benchmark
-// -------------------------------------------------------------
-
-async function loadDetectorBenchmark() {
-  const entropyThresh = parseFloat(document.getElementById('det-entropy-slider').value);
-  const iatThresh = parseFloat(document.getElementById('det-iat-slider').value);
-  const lenThresh = parseInt(document.getElementById('det-len-slider').value);
-
-  try {
-    const res = await fetch('/api/detector/evaluate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        entropy_threshold: entropyThresh,
-        iat_threshold: iatThresh,
-        length_threshold: lenThresh
-      })
-    });
-    const data = await res.json();
-    if (data.status !== 'success') return;
-
-    const b = data.benchmark.detectors;
-
-    // Update Confusion Matrices
-    renderConfusionMatrix('entropy', b.entropy_only.results.confusion_matrix);
-    renderConfusionMatrix('timing', b.timing_only.results.confusion_matrix);
-    renderConfusionMatrix('combined', b.combined.results.confusion_matrix);
-
-    // Update Benchmark Metrics Table
-    renderDetectorMetricsTable(b);
-
-    // Update Performance Comparison Chart
-    renderDetectorComparisonChart(b);
-
-    // Update Comparison Text
-    document.getElementById('det-comparison-summary').innerHTML = `
-      • <strong>Entropy-Only:</strong> ${data.benchmark.comparisons.entropy_summary}<br>
-      • <strong>Timing-Only:</strong> ${data.benchmark.comparisons.timing_summary}<br>
-      • <strong>Combined:</strong> ${data.benchmark.comparisons.combined_summary}
-    `;
-  } catch (err) {
-    console.error("Failed to load detector benchmark:", err);
-  }
-}
-
-function renderConfusionMatrix(prefix, cm) {
-  document.getElementById(`cm-${prefix}-tp`).textContent = cm.tp;
-  document.getElementById(`cm-${prefix}-fp`).textContent = cm.fp;
-  document.getElementById(`cm-${prefix}-fn`).textContent = cm.fn;
-  document.getElementById(`cm-${prefix}-tn`).textContent = cm.tn;
-}
-
-function renderDetectorMetricsTable(b) {
-  const tbody = document.getElementById('det-metrics-tbody');
-  tbody.innerHTML = '';
-
-  const list = [
-    { name: "1. Shannon Entropy Only", obj: b.entropy_only },
-    { name: "2. Timing (IAT) Only", obj: b.timing_only },
-    { name: "3. Combined Statistical Detector", obj: b.combined }
-  ];
-
-  list.forEach(item => {
-    const m = item.obj.results.metrics;
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td><strong>${item.name}</strong><br><small style="color:var(--text-muted);">${item.obj.condition}</small></td>
-      <td class="numeric"><strong>${m.detection_rate_pct}%</strong></td>
-      <td class="numeric" style="color: ${m.false_positive_rate_pct > 10 ? 'var(--suspicious-color)' : 'var(--text-main)'};">${m.false_positive_rate_pct}%</td>
-      <td class="numeric">${m.precision_pct}%</td>
-      <td class="numeric">${m.specificity_pct}%</td>
-      <td class="numeric">${m.accuracy_pct}%</td>
-      <td class="numeric"><strong>${m.f1_score}</strong></td>
-    `;
-    tbody.appendChild(tr);
-  });
-}
-
-function renderDetectorComparisonChart(b) {
-  destroyChart('detectorChart');
-  const ctx = document.getElementById('detectorComparisonCanvas').getContext('2d');
-
-  charts['detectorChart'] = new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels: ['Detection Rate (Sensitivity)', 'False Positive Rate (FPR)', 'Precision (PPV)', 'Accuracy'],
-      datasets: [
-        {
-          label: 'Entropy Only',
-          data: [
-            b.entropy_only.results.metrics.detection_rate_pct,
-            b.entropy_only.results.metrics.false_positive_rate_pct,
-            b.entropy_only.results.metrics.precision_pct,
-            b.entropy_only.results.metrics.accuracy_pct
-          ],
-          backgroundColor: 'rgba(59, 130, 246, 0.65)',
-          borderColor: '#2563eb',
-          borderWidth: 1
-        },
-        {
-          label: 'Timing (IAT) Only',
-          data: [
-            b.timing_only.results.metrics.detection_rate_pct,
-            b.timing_only.results.metrics.false_positive_rate_pct,
-            b.timing_only.results.metrics.precision_pct,
-            b.timing_only.results.metrics.accuracy_pct
-          ],
-          backgroundColor: 'rgba(245, 158, 11, 0.65)',
-          borderColor: '#d97706',
-          borderWidth: 1
-        },
-        {
-          label: 'Combined Statistical Detector',
-          data: [
-            b.combined.results.metrics.detection_rate_pct,
-            b.combined.results.metrics.false_positive_rate_pct,
-            b.combined.results.metrics.precision_pct,
-            b.combined.results.metrics.accuracy_pct
-          ],
-          backgroundColor: 'rgba(16, 185, 129, 0.65)',
-          borderColor: '#059669',
-          borderWidth: 1
-        }
-      ]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      scales: {
-        y: { title: { display: true, text: 'Percentage (%)' }, beginAtZero: true, max: 100 }
       }
     }
   });
@@ -920,7 +592,7 @@ function renderDetectorComparisonChart(b) {
 // Slider listeners to sync visible text and auto-refresh
 function initSliderListeners() {
   // Bayes sliders
-  const bayesSliders = ['bayes-prior-slider', 'bayes-sens-slider', 'bayes-fpr-slider', 'binom-n-slider', 'binom-p-slider'];
+  const bayesSliders = ['bayes-prior-slider', 'bayes-sens-slider', 'bayes-fpr-slider', 'binom-n-slider'];
   bayesSliders.forEach(id => {
     const el = document.getElementById(id);
     if (el) {
@@ -932,38 +604,24 @@ function initSliderListeners() {
     }
   });
 
-  // CLT sliders
-  const cltSliders = ['clt-n-slider', 'clt-reps-slider'];
-  cltSliders.forEach(id => {
-    const el = document.getElementById(id);
-    if (el) {
-      el.addEventListener('input', () => {
-        const valSpan = document.getElementById(`${id}-val`);
-        if (valSpan) valSpan.textContent = el.value;
-      });
-    }
-  });
-  document.getElementById('btn-run-clt')?.addEventListener('click', loadSamplingCLT);
-  document.getElementById('clt-feature-select')?.addEventListener('change', loadSamplingCLT);
-
   // Descriptive feature select
   document.getElementById('desc-feature-select')?.addEventListener('change', updateDescriptiveView);
 
   // Detector benchmark sliders
-  const detSliders = ['det-entropy-slider', 'det-iat-slider', 'det-len-slider'];
+  const detSliders = ['det-entropy-slider', 'det-iat-slider'];
   detSliders.forEach(id => {
     const el = document.getElementById(id);
     if (el) {
       el.addEventListener('input', () => {
         const valSpan = document.getElementById(`${id}-val`);
         if (valSpan) valSpan.textContent = el.value;
-        loadDetectorBenchmark();
+        loadCorrelationAndResults();
       });
     }
   });
 }
 
-// Global initialization on DOM ready
+// Global initialization
 document.addEventListener('DOMContentLoaded', () => {
   initTabs();
   initDatasetControls();

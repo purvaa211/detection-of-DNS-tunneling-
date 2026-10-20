@@ -63,6 +63,12 @@ def process_dns_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     - inter_arrival_time: Time difference (seconds) between successive queries
     - label: 'Normal' or 'Suspicious'
     """
+    if df is None or len(df) == 0:
+        raise ValueError("The uploaded CSV file is empty. Please provide a CSV file with valid DNS records.")
+
+    if len(df) < 2:
+        raise ValueError("The CSV file must contain at least 2 rows of data for statistical analysis.")
+
     df = df.copy()
 
     # Normalize column names to lowercase and strip whitespace
@@ -70,18 +76,20 @@ def process_dns_dataframe(df: pd.DataFrame) -> pd.DataFrame:
 
     # Map common aliases for query column
     query_col = None
-    for alias in ['query', 'domain', 'dns_query', 'name', 'domain_name', 'query_name']:
+    for alias in ['query', 'domain', 'dns_query', 'name', 'domain_name', 'query_name', 'url', 'host']:
         if alias in df.columns:
             query_col = alias
             break
 
     if not query_col:
-        raise ValueError("Dataset must contain a domain query column (e.g., 'query' or 'domain').")
+        raise ValueError(
+            "Could not identify a domain query column. Please ensure your CSV contains a column named 'query' or 'domain'."
+        )
 
-    df['query'] = df[query_col].astype(str)
-
-    # Clean query
-    df['query'] = df['query'].str.strip().str.rstrip('.')
+    df['query'] = df[query_col].astype(str).str.strip().str.rstrip('.')
+    df = df[df['query'].str.len() > 0]
+    if len(df) < 2:
+        raise ValueError("Not enough valid non-empty domain queries found in the file.")
 
     # Timestamp handling
     time_col = None
@@ -96,7 +104,7 @@ def process_dns_dataframe(df: pd.DataFrame) -> pd.DataFrame:
         if not df['timestamp'].isna().all():
             df = df.sort_values(by='timestamp').reset_index(drop=True)
     else:
-        # Generate synthetic chronological timestamps (1 second average step)
+        # Generate synthetic chronological timestamps (1.5 second average step)
         start_time = pd.Timestamp.now()
         df['timestamp'] = [start_time + pd.Timedelta(seconds=i * 1.5) for i in range(len(df))]
 

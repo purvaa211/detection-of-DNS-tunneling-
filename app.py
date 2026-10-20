@@ -8,6 +8,7 @@ import io
 import json
 import pandas as pd
 import numpy as np
+from scipy import stats
 from flask import Flask, render_template, request, jsonify, send_file
 from werkzeug.utils import secure_filename
 
@@ -79,9 +80,14 @@ def get_dataset_info():
         if f.endswith('.csv')
     ]
 
+    is_simulated = ACTIVE_DATASET_NAME.startswith('sample_')
+    dataset_desc = "Preloaded simulated educational dataset" if is_simulated else "User uploaded dataset"
+
     return jsonify({
         "status": "success",
         "dataset_name": ACTIVE_DATASET_NAME,
+        "is_simulated": is_simulated,
+        "dataset_description": dataset_desc,
         "total_queries": total,
         "normal_queries": normal_cnt,
         "suspicious_queries": suspicious_cnt,
@@ -128,14 +134,14 @@ def upload_dataset():
     """Handles custom CSV dataset upload with validation and feature extraction."""
     global ACTIVE_DF, ACTIVE_DATASET_NAME
     if 'file' not in request.files:
-        return jsonify({"status": "error", "message": "No file uploaded"}), 400
+        return jsonify({"status": "error", "message": "No file uploaded. Please select a CSV file."}), 400
 
     file = request.files['file']
     if file.filename == '':
-        return jsonify({"status": "error", "message": "No file selected"}), 400
+        return jsonify({"status": "error", "message": "No file selected."}), 400
 
     if not file.filename.lower().endswith('.csv'):
-        return jsonify({"status": "error", "message": "File must be a .csv file"}), 400
+        return jsonify({"status": "error", "message": "Invalid file format. Only .csv files are supported."}), 400
 
     filename = secure_filename(file.filename)
     filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
@@ -148,13 +154,25 @@ def upload_dataset():
 
         return jsonify({
             "status": "success",
-            "message": f"File '{filename}' uploaded and processed successfully.",
+            "message": f"Dataset '{filename}' successfully uploaded and analyzed ({len(ACTIVE_DF)} records).",
             "dataset_name": filename,
             "rows": len(ACTIVE_DF),
             "columns": list(ACTIVE_DF.columns)
         })
+    except ValueError as ve:
+        if os.path.exists(filepath):
+            try:
+                os.remove(filepath)
+            except Exception:
+                pass
+        return jsonify({"status": "error", "message": str(ve)}), 400
     except Exception as e:
-        return jsonify({"status": "error", "message": f"Failed to parse CSV: {str(e)}"}), 400
+        if os.path.exists(filepath):
+            try:
+                os.remove(filepath)
+            except Exception:
+                pass
+        return jsonify({"status": "error", "message": f"Failed to parse CSV file: {str(e)}"}), 400
 
 
 @app.route('/api/dataset/records', methods=['GET'])
@@ -166,7 +184,7 @@ def get_dataset_records():
 
     # Query params
     page = int(request.args.get('page', 1))
-    page_size = int(request.args.get('page_size', 15))
+    page_size = int(request.args.get('page_size', 12))
     search = request.args.get('search', '').strip().lower()
     label_filter = request.args.get('label', 'all').strip()
     sort_by = request.args.get('sort_by', 'timestamp')
@@ -239,14 +257,14 @@ def download_dataset():
 
 
 # ---------------------------------------------------------------------
-# Syllabus Concept 1: Descriptive Statistics
+# Section 2: Data Analysis (Descriptive Statistics)
 # ---------------------------------------------------------------------
 
 @app.route('/api/stats/descriptive', methods=['GET'])
 def get_descriptive_stats():
     """
     Computes complete descriptive statistics (mean, median, mode, variance,
-    std dev, CV, IQR, skewness, kurtosis), histograms, and box plots.
+    std dev, CV, IQR, quartiles), histograms, and box plots.
     """
     df = get_active_df()
 
@@ -287,50 +305,73 @@ def get_descriptive_stats():
 
 
 # ---------------------------------------------------------------------
-# Syllabus Concept 2: Probability & Distributions
+# Section 3: Probability & Distributions
 # ---------------------------------------------------------------------
 
 @app.route('/api/stats/probability', methods=['GET', 'POST'])
 def get_probability_analysis():
     """
-    Computes Bayes' theorem analysis, Binomial batch trials,
-    Poisson arrival modeling, and Exponential IAT fits.
+    Computes basic probability rates, Bayes' theorem analysis,
+    Binomial batch trials, Normal distribution fit & 95% Confidence Interval.
     """
     df = get_active_df()
 
     # Get parameters from query or body
     params = request.get_json() if request.is_json else request.args
 
-    prior = float(params.get('prior_tunnel', 0.05))
+    total = len(df)
+    norm_cnt = int(np.sum(df['label'] == 'Normal'))
+    susp_cnt = int(np.sum(df['label'] == 'Suspicious'))
+    p_norm = round(norm_cnt / total, 4) if total > 0 else 0.5
+    p_susp = round(susp_cnt / total, 4) if total > 0 else 0.5
+
+    prior = float(params.get('prior_tunnel', p_susp if p_susp > 0 else 0.05))
     sens = float(params.get('sensitivity', 0.94))
     fpr = float(params.get('fpr', 0.03))
 
     n_batch = int(params.get('n_batch', 30))
-    p_batch = float(params.get('p_batch', 0.15))
+    p_batch = float(params.get('p_batch', p_susp if p_susp > 0 else 0.15))
 
     bayes_res = stats_engine.bayes_theorem_analysis(prior, sens, fpr)
     binomial_res = stats_engine.binomial_model(n_batch, p_batch)
     poisson_res = stats_engine.poisson_arrival_model(df, time_bucket_seconds=2.0)
     exponential_res = stats_engine.exponential_iat_model(df)
 
+    # 95% Confidence Interval for mean entropy & Normal distribution fit
+    ci_res = stats_engine.compute_confidence_intervals(df['entropy'])
+    zscore_res = stats_engine.z_score_and_normality_analysis(df['entropy'], 'entropy')
+
     return jsonify({
         "status": "success",
+        "empirical_probs": {
+            "p_normal": p_norm,
+            "p_suspicious": p_susp,
+            "normal_count": norm_cnt,
+            "suspicious_count": susp_cnt,
+            "total_count": total
+        },
         "bayes_theorem": bayes_res,
         "binomial_batch": binomial_res,
         "poisson_process": poisson_res,
-        "exponential_iat": exponential_res
+        "exponential_iat": exponential_res,
+        "normal_fit": {
+            "ci_95": ci_res.get('confidence_intervals', {}).get('95%', {}),
+            "empirical_rule": zscore_res.get('empirical_rule', {}),
+            "mean": zscore_res.get('mean', 0.0),
+            "std_dev": zscore_res.get('std_dev', 0.0),
+            "interpretation": zscore_res.get('interpretation', '')
+        }
     })
 
 
 # ---------------------------------------------------------------------
-# Syllabus Concept 3 & 4: Normal Distribution, Sampling & CLT
+# Section 3 & 4 (Supportive): Sampling & Central Limit Theorem
 # ---------------------------------------------------------------------
 
 @app.route('/api/stats/sampling', methods=['GET', 'POST'])
 def get_sampling_and_clt():
     """
-    Runs Central Limit Theorem Monte Carlo simulation and computes
-    Confidence Intervals (90%, 95%, 99%) and Z-score analysis.
+    Central Limit Theorem simulation and Confidence Intervals.
     """
     df = get_active_df()
     params = request.get_json() if request.is_json else request.args
@@ -358,14 +399,14 @@ def get_sampling_and_clt():
 
 
 # ---------------------------------------------------------------------
-# Syllabus Concept 5: Hypothesis Testing & ANOVA
+# Section 4: Hypothesis Testing
 # ---------------------------------------------------------------------
 
 @app.route('/api/stats/hypothesis', methods=['GET'])
 def get_hypothesis_testing():
     """
-    Performs Welch's Two-Sample t-tests, Chi-Square Test of Independence,
-    and One-Way ANOVA across record types.
+    Performs Welch's Two-Sample t-tests comparing Normal vs Suspicious traffic,
+    plus Chi-Square Test and ANOVA for full coverage.
     """
     df = get_active_df()
 
@@ -375,7 +416,7 @@ def get_hypothesis_testing():
     # Two-sample t-tests
     t_test_entropy = stats_engine.two_sample_welch_t_test(
         normal_df['entropy'], suspicious_df['entropy'],
-        group1_name="Normal", group2_name="Suspicious", feature_name="Entropy"
+        group1_name="Normal", group2_name="Suspicious", feature_name="Shannon Entropy"
     )
     t_test_length = stats_engine.two_sample_welch_t_test(
         normal_df['query_length'], suspicious_df['query_length'],
@@ -409,17 +450,37 @@ def get_hypothesis_testing():
 
 
 # ---------------------------------------------------------------------
-# Syllabus Concept 6: Correlation & Linear Regression
+# Section 5: Correlation & Simple Linear Regression
 # ---------------------------------------------------------------------
 
 @app.route('/api/stats/regression', methods=['GET'])
 def get_correlation_regression():
     """
-    Computes Pearson r, Spearman rho, and OLS Linear Regression
-    between Query Length and Shannon Entropy.
+    Computes Pearson r, Spearman rho, OLS Linear Regression
+    between Query Length and Shannon Entropy, plus pairwise correlations.
     """
     df = get_active_df()
     reg_res = stats_engine.correlation_and_regression(df, x_col='query_length', y_col='entropy')
+
+    # Calculate pairwise correlation between Query Length, Entropy, and IAT
+    try:
+        clean_subset = df[['query_length', 'entropy', 'inter_arrival_time']].dropna()
+        r_len_ent, _ = stats.pearsonr(clean_subset['query_length'], clean_subset['entropy'])
+        r_len_iat, _ = stats.pearsonr(clean_subset['query_length'], clean_subset['inter_arrival_time'])
+        r_ent_iat, _ = stats.pearsonr(clean_subset['entropy'], clean_subset['inter_arrival_time'])
+
+        reg_res["pairwise_correlations"] = {
+            "length_entropy": round(float(r_len_ent), 4),
+            "length_iat": round(float(r_len_iat), 4),
+            "entropy_iat": round(float(r_ent_iat), 4)
+        }
+    except Exception:
+        reg_res["pairwise_correlations"] = {
+            "length_entropy": reg_res.get("pearson_r", 0.0),
+            "length_iat": 0.0,
+            "entropy_iat": 0.0
+        }
+
     return jsonify({
         "status": "success",
         "regression": reg_res
@@ -427,7 +488,7 @@ def get_correlation_regression():
 
 
 # ---------------------------------------------------------------------
-# Detection Engine & Threshold Benchmark
+# Section 5: Supporting Detection Engine Evaluation
 # ---------------------------------------------------------------------
 
 @app.route('/api/detector/evaluate', methods=['GET', 'POST'])

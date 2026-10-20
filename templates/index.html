@@ -3,27 +3,30 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Detecting DNS Tunneling Using Entropy & Timing Statistics | Probability and Statistics Course Project</title>
+  <title>Detecting DNS Tunneling Using Entropy & Timing Statistics</title>
   <link rel="stylesheet" href="/static/css/style.css">
   <!-- Local Chart.js bundle with CDN fallback -->
   <script src="/static/js/chart.umd.min.js"></script>
 </head>
 <body>
 
-  <!-- Header -->
+  <!-- Clean Centered Header: Only the main heading -->
   <header class="app-header">
-    <div class="header-container">
-      <div class="header-titles">
-        <h1>Detecting DNS Tunneling Using Entropy & Timing Statistics</h1>
-        <div class="header-subtitle">Probability and Statistics Course Project | College Demonstration</div>
-      </div>
-      <div class="header-dataset-selector">
-        <label for="dataset-select">Dataset:</label>
-        <select id="dataset-select" title="Switch active dataset"></select>
-        <a href="/api/dataset/download" class="btn btn-secondary btn-sm" title="Export processed dataset with statistical features">Export CSV</a>
-      </div>
+    <div class="header-container-center">
+      <h1>Detecting DNS Tunneling Using Entropy & Timing Statistics</h1>
     </div>
   </header>
+
+  <!-- Clean Dataset Switcher Bar -->
+  <div class="dataset-bar">
+    <div class="dataset-bar-inner">
+      <div class="dataset-selector-group">
+        <label for="dataset-select">Active Dataset:</label>
+        <select id="dataset-select" title="Switch dataset"></select>
+      </div>
+      <a href="/api/dataset/download" class="btn btn-outline btn-sm">Export Processed Data (CSV)</a>
+    </div>
+  </div>
 
   <!-- Navigation Tabs (5 Clean Sections) -->
   <nav class="nav-tabs-wrapper">
@@ -39,7 +42,7 @@
   <!-- Main Container -->
   <main class="main-container">
 
-    <!-- Quick Metrics Top Banner -->
+    <!-- Top Summary Metric Cards -->
     <section class="metrics-row">
       <div class="metric-card">
         <div class="metric-label">Total Queries</div>
@@ -54,7 +57,7 @@
       <div class="metric-card">
         <div class="metric-label">Suspicious Traffic</div>
         <div class="metric-value" style="color: var(--suspicious-color);" id="metric-suspicious-queries">-</div>
-        <div class="metric-sub">Anomalous / high-entropy queries</div>
+        <div class="metric-sub">High-entropy / burst queries</div>
       </div>
       <div class="metric-card">
         <div class="metric-label">Mean Shannon Entropy</div>
@@ -69,7 +72,7 @@
       <div class="metric-card">
         <div class="metric-label">Mean Inter-Arrival Time</div>
         <div class="metric-value" id="metric-mean-iat">-</div>
-        <div class="metric-sub">Average query spacing (seconds)</div>
+        <div class="metric-sub">Average spacing (seconds)</div>
       </div>
     </section>
 
@@ -77,64 +80,41 @@
     <!-- SECTION 1: OVERVIEW -->
     <!-- ================================================================= -->
     <div id="tab-overview" class="tab-content active">
-      <div class="grid-2">
-        <!-- Project Context Card -->
-        <div class="card">
-          <div class="card-header">
-            <div>
-              <h2 class="card-title">Project Overview & Data Variables</h2>
-              <div class="card-subtitle">Using DNS telemetry as a practical dataset for probability and statistics</div>
-            </div>
-          </div>
-          <p style="margin-bottom: 10px; font-size: 0.88rem; color: var(--text-muted);">
-            This project applies core <strong>Probability and Statistics syllabus concepts</strong> to real-world network query data. Rather than focusing on complex cybersecurity protocols, we analyze two continuous random variables extracted from domain names:
-          </p>
-          <ul style="margin-left: 20px; font-size: 0.86rem; color: var(--text-muted); line-height: 1.6;">
-            <li><strong>Shannon Entropy ($H$):</strong> Measures the character randomness in bits per character. Normal domain names (e.g., <code>google.com</code>, <code>wikipedia.org</code>) have natural English patterns with lower entropy ($\sim 2.0 - 3.4$ bits). Encoded or suspicious queries (e.g., <code>a7f9b0c1e8...attacker.com</code>) have high randomness ($\sim 4.0 - 4.9$ bits).</li>
-            <li><strong>Inter-Arrival Time ($\Delta t$):</strong> Measures the time gap between consecutive queries. Normal human browsing is variable and bursty, whereas automated scripts often send rapid or regular queries.</li>
-          </ul>
-          <div class="interpretation-box info" style="margin-top: 14px;">
-            <div class="interpretation-title">Viva Note for Examiners</div>
-            All metrics, distributions, t-tests, and regression models in this dashboard are calculated dynamically from the selected dataset, not hardcoded.
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title">Dataset Overview & Statistical Variables</h2>
+            <div class="card-subtitle">Using DNS query traffic as a continuous statistical dataset</div>
           </div>
         </div>
-
-        <!-- CSV Upload Card -->
-        <div class="card">
-          <div class="card-header">
-            <div>
-              <h2 class="card-title">Upload Custom CSV or Select Sample</h2>
-              <div class="card-subtitle">Supports custom CSV files with dynamic feature calculation</div>
-            </div>
+        <p style="margin-bottom: 12px; color: var(--text-muted);">
+          This project analyzes network domain queries through two primary statistical random variables to evaluate whether data is being tunneled or exfiltrated:
+        </p>
+        <div class="grid-2" style="margin-top: 14px;">
+          <div style="background:#f8fafc; padding:16px; border-radius:8px; border:1px solid var(--border-color);">
+            <div style="font-weight:600; color:var(--text-main); margin-bottom:6px;">1. Shannon Entropy (bits per character)</div>
+            <p style="font-size:0.86rem; color:var(--text-muted); line-height:1.5;">
+              Measures the informational randomness of characters. Legitimate domain names (such as google.com or wikipedia.org) follow standard English word patterns with lower entropy (around 2.0 to 3.4 bits). Encoded or suspicious queries (such as hex or base32 chunks) distribute characters more uniformly, yielding significantly higher entropy (around 4.0 to 4.9 bits).
+            </p>
           </div>
-          <form id="upload-form" style="margin-bottom: 12px;">
-            <div style="margin-bottom: 8px;">
-              <label style="display:block; font-size:0.82rem; font-weight:600; margin-bottom:4px;" for="upload-file">Select CSV File:</label>
-              <input type="file" id="upload-file" accept=".csv" required style="font-size: 0.84rem;">
-            </div>
-            <button type="submit" class="btn btn-primary btn-sm">Upload & Analyze</button>
-            <span id="upload-status" style="margin-left: 10px; font-size: 0.82rem;"></span>
-          </form>
-          <div style="font-size: 0.8rem; color: var(--text-muted); line-height: 1.5;">
-            <strong>Expected CSV format:</strong> Must contain a column named <code>query</code> or <code>domain</code>.<br>
-            <em>Optional columns:</em> <code>timestamp</code>, <code>label</code> (Normal / Suspicious).<br>
-            If entropy, query length, or inter-arrival time are missing, they are automatically computed on upload!
-          </div>
-          <div class="interpretation-box warning" style="margin-top: 10px; padding: 8px 12px; font-size: 0.78rem;">
-            <strong>Data Notice:</strong> Preloaded sample datasets contain educational simulated traffic based on standard web domains and simulated encoded queries. Uploaded files represent your own data.
+          <div style="background:#f8fafc; padding:16px; border-radius:8px; border:1px solid var(--border-color);">
+            <div style="font-weight:600; color:var(--text-main); margin-bottom:6px;">2. Inter-Arrival Time (seconds)</div>
+            <p style="font-size:0.86rem; color:var(--text-muted); line-height:1.5;">
+              Measures the time interval between consecutive queries. Normal human browsing creates variable, bursty intervals with natural idle gaps, whereas automated scripts or periodic beacons often generate rapid bursts or tightly clustered queries.
+            </p>
           </div>
         </div>
       </div>
 
-      <!-- Traffic Records Table Card -->
+      <!-- Interactive Records Table -->
       <div class="card">
         <div class="card-header">
           <div>
-            <h2 class="card-title">Interactive DNS Query Records Table</h2>
-            <div class="card-subtitle">Search, filter, and inspect calculated entropy and timing statistics</div>
+            <h2 class="card-title">DNS Traffic Query Records</h2>
+            <div class="card-subtitle">Search and inspect domain names, character lengths, entropy, and arrival timings</div>
           </div>
-          <div class="controls-bar" style="margin-bottom: 0;">
-            <input type="text" id="table-search" placeholder="Search domain..." style="width: 200px;">
+          <div class="controls-bar">
+            <input type="text" id="table-search" placeholder="Search domain..." style="width: 220px;">
             <select id="table-label-filter">
               <option value="all">All Traffic</option>
               <option value="normal">Normal Only</option>
@@ -162,11 +142,11 @@
           </table>
         </div>
 
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:12px; font-size:0.82rem;">
-          <span id="page-info">Page 1</span>
-          <div style="display:flex; gap:6px;">
-            <button id="btn-prev-page" class="btn btn-secondary btn-sm" disabled>Previous</button>
-            <button id="btn-next-page" class="btn btn-secondary btn-sm">Next</button>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:14px; font-size:0.85rem;">
+          <span id="page-info" style="color:var(--text-muted);">Page 1</span>
+          <div style="display:flex; gap:8px;">
+            <button id="btn-prev-page" class="btn btn-outline btn-sm" disabled>Previous</button>
+            <button id="btn-next-page" class="btn btn-outline btn-sm">Next</button>
           </div>
         </div>
       </div>
@@ -180,9 +160,9 @@
         <div class="card-header">
           <div>
             <h2 class="card-title">Descriptive Statistics & Data Spread</h2>
-            <div class="card-subtitle">Measures of central tendency, variability, quartiles, and frequency distributions</div>
+            <div class="card-subtitle">Measures of central tendency, spread, and comparative frequency distribution</div>
           </div>
-          <div class="controls-bar" style="margin-bottom:0;">
+          <div class="controls-bar">
             <label for="desc-feature-select">Select Feature:</label>
             <select id="desc-feature-select">
               <option value="entropy">Shannon Entropy (bits/char)</option>
@@ -221,8 +201,8 @@
           </div>
         </div>
 
-        <!-- Viva Explanation Note -->
-        <div class="interpretation-box" id="desc-interpretation-text">
+        <!-- Clean Summary Box -->
+        <div class="note-box" id="desc-interpretation-text">
           Loading statistical interpretation...
         </div>
       </div>
@@ -236,64 +216,40 @@
       <div class="card">
         <div class="card-header">
           <div>
-            <h2 class="card-title">Basic Probability & Bayes' Theorem</h2>
-            <div class="card-subtitle">Empirical base rates and the Base Rate Fallacy: P(Suspicious | Alarm)</div>
+            <h2 class="card-title">Empirical Probability & Bayes' Theorem</h2>
+            <div class="card-subtitle">Base rates and conditional probability calculated directly from the dataset</div>
           </div>
         </div>
 
         <div class="grid-2">
-          <!-- Sliders -->
-          <div>
-            <div style="font-size:0.85rem; margin-bottom:12px; color:var(--text-muted);">
-              <strong>Empirical Base Rates in Dataset:</strong><br>
-              • $P(\text{Normal}) = \frac{\text{Normal Count}}{\text{Total}} =$ <code id="prob-p-normal">-</code><br>
-              • $P(\text{Suspicious}) = \frac{\text{Suspicious Count}}{\text{Total}} =$ <code id="prob-p-suspicious">-</code>
+          <!-- Base Rates -->
+          <div style="display:flex; flex-direction:column; justify-content:center;">
+            <div style="font-size:0.9rem; color:var(--text-main); margin-bottom:14px; line-height:1.8;">
+              <strong>Empirical Base Rates in Current Dataset:</strong><br>
+              • <strong>P(Normal):</strong> <span id="prob-p-normal" style="font-weight:600; color:var(--normal-color);">-</span><br>
+              • <strong>P(Suspicious):</strong> <span id="prob-p-suspicious" style="font-weight:600; color:var(--suspicious-color);">-</span>
             </div>
-
-            <div class="slider-group">
-              <div class="slider-header">
-                <span>Prior Attack Probability P(Suspicious):</span>
-                <span class="slider-val" id="bayes-prior-slider-val">0.05</span>
-              </div>
-              <input type="range" id="bayes-prior-slider" min="0.01" max="0.30" step="0.01" value="0.05">
-              <small style="color:var(--text-muted);">Expected proportion of suspicious queries in network traffic</small>
-            </div>
-
-            <div class="slider-group">
-              <div class="slider-header">
-                <span>Detector Sensitivity P(Alarm | Suspicious):</span>
-                <span class="slider-val" id="bayes-sens-slider-val">0.94</span>
-              </div>
-              <input type="range" id="bayes-sens-slider" min="0.70" max="0.99" step="0.01" value="0.94">
-              <small style="color:var(--text-muted);">Probability detector triggers when a query is genuinely suspicious</small>
-            </div>
-
-            <div class="slider-group">
-              <div class="slider-header">
-                <span>False Alarm Rate P(Alarm | Normal):</span>
-                <span class="slider-val" id="bayes-fpr-slider-val">0.03</span>
-              </div>
-              <input type="range" id="bayes-fpr-slider" min="0.01" max="0.15" step="0.01" value="0.03">
-              <small style="color:var(--text-muted);">Probability detector flags benign normal traffic</small>
-            </div>
+            <p style="font-size:0.86rem; color:var(--text-muted); line-height:1.6;">
+              When network monitoring flags a query with high character randomness, Bayes' theorem determines the probability that the query is truly suspicious versus a benign false alarm.
+            </p>
           </div>
 
-          <!-- Calculated Results & Viva Note -->
+          <!-- Calculated Posterior Results -->
           <div>
             <div class="grid-2" style="margin-bottom:12px;">
-              <div class="metric-card" style="padding:10px;">
-                <div class="metric-label">Posterior P(Suspicious|Alarm)</div>
-                <div class="metric-value" id="bayes-posterior-val" style="color:var(--secondary-color); font-size:1.4rem;">-</div>
-                <div class="metric-sub">Precision / Reliability</div>
+              <div class="metric-card" style="padding:14px;">
+                <div class="metric-label">P(Suspicious | Alarm)</div>
+                <div class="metric-value" id="bayes-posterior-val" style="color:var(--primary-color); font-size:1.45rem;">-</div>
+                <div class="metric-sub">Reliability of High Entropy Alarm</div>
               </div>
-              <div class="metric-card" style="padding:10px;">
-                <div class="metric-label">P(Normal|No Alarm)</div>
-                <div class="metric-value" id="bayes-npv-val" style="color:var(--normal-color); font-size:1.4rem;">-</div>
+              <div class="metric-card" style="padding:14px;">
+                <div class="metric-label">P(Normal | No Alarm)</div>
+                <div class="metric-value" id="bayes-npv-val" style="color:var(--normal-color); font-size:1.45rem;">-</div>
                 <div class="metric-sub">Negative Predictive Value</div>
               </div>
             </div>
 
-            <div class="interpretation-box warning" id="bayes-note-text">
+            <div class="note-box" id="bayes-note-text" style="margin-top:8px;">
               Loading Bayes' theorem calculation...
             </div>
           </div>
@@ -307,28 +263,21 @@
           <div class="card-header">
             <div>
               <h2 class="card-title">Binomial Distribution (Batch Modeling)</h2>
-              <div class="card-subtitle">Probability of k suspicious queries in a batch of n queries: X ~ B(n, p)</div>
+              <div class="card-subtitle">Probability of observing k suspicious queries in a sliding batch of n = 30 queries</div>
             </div>
           </div>
 
-          <div style="margin-bottom:10px;">
-            <div class="slider-header">
-              <span>Batch Size (n): <strong id="binom-n-slider-val">30</strong> queries</span>
-            </div>
-            <input type="range" id="binom-n-slider" min="10" max="50" step="5" value="30">
-          </div>
-
-          <div style="font-size:0.82rem; margin-bottom:8px; color:var(--text-muted);">
-            <span id="binom-mean-val" style="margin-right:12px; font-weight:600;">E[X] = -</span>
-            <span id="binom-var-val" style="font-weight:600;">Var(X) = -</span>
+          <div style="font-size:0.86rem; margin-bottom:12px; color:var(--text-muted);">
+            <span id="binom-mean-val" style="margin-right:16px; font-weight:600; color:var(--text-main);">Expected Value: -</span>
+            <span id="binom-var-val" style="font-weight:600; color:var(--text-main);">Variance: -</span>
           </div>
 
           <div class="chart-box">
             <canvas id="binomialChartCanvas"></canvas>
           </div>
 
-          <div class="interpretation-box info" style="margin-top:10px; font-size:0.8rem;">
-            <strong>Viva Takeaway:</strong> In a sliding window of $n$ queries, observing $k \ge 5$ suspicious queries is statistically rare under low $p$, signaling an automated burst.
+          <div class="note-box" style="margin-top:14px;">
+            In a sliding batch of 30 queries, observing multiple suspicious queries is statistically rare under normal network conditions, providing a quantitative trigger for automated monitoring.
           </div>
         </div>
 
@@ -337,25 +286,25 @@
           <div class="card-header">
             <div>
               <h2 class="card-title">Normal Distribution & Confidence Interval</h2>
-              <div class="card-subtitle">Empirical Rule (68-95-99.7%) and 95% Confidence Interval for Mean Entropy</div>
+              <div class="card-subtitle">Empirical Rule check and 95% Confidence Interval for mean Shannon Entropy</div>
             </div>
           </div>
 
-          <div class="metric-card" style="margin-bottom:12px; padding:12px;">
+          <div class="metric-card" style="margin-bottom:16px; padding:16px;">
             <div class="metric-label">95% Confidence Interval for Mean Entropy</div>
-            <div class="metric-value" id="norm-ci95-val" style="font-size:1.25rem; color:var(--primary-color);">-</div>
-            <div class="metric-sub" id="norm-ci95-sub">Using Student's t-distribution: x̄ ± 1.96 · (s / √n)</div>
+            <div class="metric-value" id="norm-ci95-val" style="font-size:1.3rem; color:var(--primary-color);">-</div>
+            <div class="metric-sub">Calculated using Student's t-distribution: Mean ± 1.96 × Standard Error</div>
           </div>
 
-          <div style="font-size:0.85rem; color:var(--text-muted); line-height:1.6; margin-bottom:10px;">
+          <div style="font-size:0.88rem; color:var(--text-muted); line-height:1.8; margin-bottom:12px;">
             <strong>Empirical Rule Check (Shannon Entropy):</strong><br>
-            • Within ±1σ: <code id="norm-rule-1sd">-</code> (Theoretical: 68.3%)<br>
-            • Within ±2σ: <code id="norm-rule-2sd">-</code> (Theoretical: 95.4%)<br>
-            • Within ±3σ: <code id="norm-rule-3sd">-</code> (Theoretical: 99.7%)
+            • Within ±1 Standard Deviation: <strong id="norm-rule-1sd" style="color:var(--text-main);">-</strong> (Theoretical target: 68.3%)<br>
+            • Within ±2 Standard Deviations: <strong id="norm-rule-2sd" style="color:var(--text-main);">-</strong> (Theoretical target: 95.4%)<br>
+            • Within ±3 Standard Deviations: <strong id="norm-rule-3sd" style="color:var(--text-main);">-</strong> (Theoretical target: 99.7%)
           </div>
 
-          <div class="interpretation-box" id="norm-ci-interpretation" style="font-size:0.82rem;">
-            Loading confidence interval interpretation...
+          <div class="note-box" id="norm-ci-interpretation">
+            Loading confidence interval...
           </div>
         </div>
       </div>
@@ -370,16 +319,16 @@
           <div>
             <h2 class="card-title">Two-Sample Hypothesis Testing (Welch's t-Test)</h2>
             <div class="card-subtitle">
-              Comparing Normal vs Suspicious traffic means without assuming equal variances
+              Evaluating whether the difference in means between Normal and Suspicious traffic is statistically significant
             </div>
           </div>
         </div>
 
         <!-- Hypotheses Box -->
-        <div class="interpretation-box info" style="margin-bottom:16px;">
-          <strong>Formal Statistical Hypotheses:</strong><br>
-          • <strong>Null Hypothesis ($H_0$):</strong> $\mu_{\text{normal}} = \mu_{\text{suspicious}}$ (There is no true difference in population means between normal and suspicious traffic).<br>
-          • <strong>Alternative Hypothesis ($H_1$):</strong> $\mu_{\text{normal}} \neq \mu_{\text{suspicious}}$ (There is a statistically significant difference between the two traffic groups).
+        <div class="note-box" style="margin-top:0; margin-bottom:20px;">
+          <div class="note-box-title">Formal Statistical Hypotheses:</div>
+          • <strong>Null Hypothesis (H0):</strong> Mean value is equal between Normal and Suspicious traffic.<br>
+          • <strong>Alternative Hypothesis (H1):</strong> Mean value is significantly different between Normal and Suspicious traffic.
         </div>
 
         <div class="table-responsive">
@@ -392,33 +341,35 @@
                 <th class="numeric">Welch t-stat</th>
                 <th class="numeric">Degrees of Freedom (df)</th>
                 <th class="numeric">p-value</th>
-                <th class="numeric">Cohen's d (Effect Size)</th>
-                <th>Decision (α = 0.05)</th>
+                <th class="numeric">Cohen's d</th>
+                <th>Decision (alpha = 0.05)</th>
               </tr>
             </thead>
             <tbody id="t-test-tbody">
-              <tr><td colspan="8" style="text-align:center; padding:15px;">Loading t-tests...</td></tr>
+              <tr><td colspan="8" style="text-align:center; padding:15px;">Loading hypothesis tests...</td></tr>
             </tbody>
           </table>
         </div>
 
-        <!-- Viva Conclusion Box -->
-        <div class="interpretation-box" style="margin-top:16px;" id="hypothesis-viva-box">
-          <div class="interpretation-title">Viva Explanation for Examiners</div>
-          <p>
-            Because the calculated p-value is extremely small ($p < 0.001$), it is far below the significance threshold $\alpha = 0.05$. Therefore, we <strong>reject the null hypothesis $H_0$</strong>. This provides rigorous mathematical evidence that the higher entropy and longer query lengths observed in suspicious traffic are statistically genuine and not a product of random chance.
-          </p>
+        <!-- Statistical Conclusion -->
+        <div class="note-box" style="margin-top:20px;">
+          <div class="note-box-title">Statistical Conclusion:</div>
+          Because the calculated p-value is extremely small (p &lt; 0.0001), it is far below the significance threshold alpha = 0.05. Therefore, we <strong>reject the null hypothesis (H0)</strong>. This provides rigorous statistical evidence that the higher entropy and longer query lengths observed in suspicious traffic are statistically genuine differences and not random variation.
         </div>
 
-        <!-- Error Matrix Explanation -->
-        <div class="grid-2" style="margin-top:14px;">
-          <div class="interpretation-box warning">
-            <div class="interpretation-title">Type I Error (False Positive, α)</div>
-            Rejecting $H_0$ when it is actually true. In this context: falsely flagging legitimate users as suspicious, causing unnecessary disruption.
+        <!-- Error Definitions -->
+        <div class="grid-2" style="margin-top:16px;">
+          <div style="background:#f8fafc; padding:16px; border-radius:8px; border:1px solid var(--border-color);">
+            <div style="font-weight:600; color:var(--text-main); margin-bottom:4px;">Type I Error (False Positive, alpha)</div>
+            <p style="font-size:0.85rem; color:var(--text-muted); line-height:1.5;">
+              Rejecting the null hypothesis when it is actually true (falsely accusing legitimate normal traffic of having anomalous characteristics).
+            </p>
           </div>
-          <div class="interpretation-box info">
-            <div class="interpretation-title">Type II Error (False Negative, β)</div>
-            Failing to reject $H_0$ when an actual difference exists. In this context: failing to detect suspicious traffic, leaving the network vulnerable.
+          <div style="background:#f8fafc; padding:16px; border-radius:8px; border:1px solid var(--border-color);">
+            <div style="font-weight:600; color:var(--text-main); margin-bottom:4px;">Type II Error (False Negative, beta)</div>
+            <p style="font-size:0.85rem; color:var(--text-muted); line-height:1.5;">
+              Failing to reject the null hypothesis when an actual difference exists (failing to flag genuine tunneling traffic).
+            </p>
           </div>
         </div>
       </div>
@@ -433,12 +384,12 @@
         <div class="card-header">
           <div>
             <h2 class="card-title">Correlation & Simple Linear Regression</h2>
-            <div class="card-subtitle">Analyzing relationships between Query Length, Shannon Entropy, and Inter-Arrival Time</div>
+            <div class="card-subtitle">Relationships between Query Length, Shannon Entropy, and Inter-Arrival Time</div>
           </div>
         </div>
 
         <!-- Pairwise Correlation Cards -->
-        <div class="grid-3" style="margin-bottom:14px;">
+        <div class="grid-3" style="margin-bottom:18px;">
           <div class="metric-card">
             <div class="metric-label">Length vs Entropy Correlation</div>
             <div class="metric-value" id="corr-len-ent" style="color:var(--primary-color);">-</div>
@@ -457,21 +408,21 @@
         </div>
 
         <div class="grid-2">
-          <!-- Metrics & Viva Note -->
+          <!-- Metrics & Notes -->
           <div>
-            <div class="metric-card" style="margin-bottom:12px;">
+            <div class="metric-card" style="margin-bottom:14px;">
               <div class="metric-label">Coefficient of Determination (R²)</div>
-              <div class="metric-value" id="reg-r2" style="color:var(--secondary-color); font-size:1.35rem;">-</div>
+              <div class="metric-value" id="reg-r2" style="color:var(--secondary-color); font-size:1.4rem;">-</div>
               <div class="metric-sub">Proportion of variance explained by linear relationship</div>
             </div>
 
-            <div class="metric-card" style="margin-bottom:12px;">
-              <div class="metric-label">Fitted Regression Line</div>
-              <div class="metric-value" id="reg-equation" style="font-size:1.0rem; line-height:1.4;">-</div>
-              <div class="metric-sub">ŷ = β₀ + β₁x (Entropy = Intercept + Slope · Length)</div>
+            <div class="metric-card" style="margin-bottom:14px;">
+              <div class="metric-label">Fitted Regression Equation</div>
+              <div class="metric-value" id="reg-equation" style="font-size:1.0rem; line-height:1.4; color:var(--text-main);">-</div>
+              <div class="metric-sub">Entropy = Intercept + Slope × Length</div>
             </div>
 
-            <div class="interpretation-box info" id="reg-interpretation-text">
+            <div class="note-box" id="reg-interpretation-text">
               Loading regression analysis...
             </div>
           </div>
@@ -492,29 +443,8 @@
       <div class="card">
         <div class="card-header">
           <div>
-            <h2 class="card-title">Supporting Evaluation: Statistical Detection</h2>
-            <div class="card-subtitle">Evaluating how well statistical thresholds separate normal from suspicious traffic</div>
-          </div>
-        </div>
-
-        <!-- Sliders -->
-        <div class="grid-2" style="margin-bottom:14px; background:#f8fafc; padding:12px; border-radius:var(--radius); border:1px solid var(--border-color);">
-          <div class="slider-group" style="margin-bottom:0;">
-            <div class="slider-header">
-              <span>Entropy Threshold (θ_H):</span>
-              <span class="slider-val" id="det-entropy-slider-val">3.75</span>
-            </div>
-            <input type="range" id="det-entropy-slider" min="2.50" max="4.80" step="0.05" value="3.75">
-            <small style="color:var(--text-muted);">Queries with entropy ≥ θ_H are flagged</small>
-          </div>
-
-          <div class="slider-group" style="margin-bottom:0;">
-            <div class="slider-header">
-              <span>Timing Threshold (θ_T):</span>
-              <span class="slider-val" id="det-iat-slider-val">0.30</span>
-            </div>
-            <input type="range" id="det-iat-slider" min="0.05" max="1.50" step="0.05" value="0.30">
-            <small style="color:var(--text-muted);">Queries with inter-arrival time ≤ θ_T are flagged</small>
+            <h2 class="card-title">Supporting Statistical Detection Performance</h2>
+            <div class="card-subtitle">Evaluating how statistical thresholding separates normal from suspicious traffic</div>
           </div>
         </div>
 
@@ -532,15 +462,15 @@
                 </tr>
               </thead>
               <tbody id="det-metrics-tbody">
-                <tr><td colspan="5" style="text-align:center;">Evaluating detector...</td></tr>
+                <tr><td colspan="5" style="text-align:center;">Evaluating detectors...</td></tr>
               </tbody>
             </table>
           </div>
 
-          <!-- Confusion Matrix for Combined Detector -->
+          <!-- Confusion Matrix for Combined Approach -->
           <div style="display:flex; flex-direction:column; align-items:center; justify-content:center;">
-            <div style="font-weight:700; font-size:0.85rem; color:var(--primary-color); margin-bottom:4px;">
-              Combined Detector Confusion Matrix (2×2)
+            <div style="font-weight:600; font-size:0.86rem; color:var(--text-main); margin-bottom:6px;">
+              Combined Approach Confusion Matrix (2×2)
             </div>
             <div class="matrix-grid">
               <div class="matrix-cell cell-tp">
@@ -567,8 +497,8 @@
           </div>
         </div>
 
-        <div class="interpretation-box info" style="margin-top:14px;" id="det-viva-summary">
-          <strong>Viva Takeaway:</strong> Entropy alone catches randomized queries but can trigger false alarms on long CDN domains. Timing alone catches rapid bursts but flags normal parallel web browsing. Combining entropy and timing provides the lowest false-positive rate.
+        <div class="note-box" style="margin-top:18px;">
+          <strong>Summary:</strong> Shannon Entropy catches high-randomness payloads, but can produce false alarms on long benign domain names. Timing catches rapid automated bursts, but can flag normal multi-tab browsing. Combining entropy and timing statistics produces the lowest false-positive rate.
         </div>
       </div>
     </div>
@@ -577,8 +507,8 @@
 
   <!-- Footer -->
   <footer class="app-footer">
-    <p><strong>DNS Traffic Statistical Analysis</strong> | Probability and Statistics Course Project</p>
-    <p>Built with Python, Flask, SciPy, NumPy, and Chart.js</p>
+    <p><strong>Detecting DNS Tunneling Using Entropy & Timing Statistics</strong></p>
+    <p style="margin-top:4px; font-size:0.8rem; color:var(--text-muted);">Probability and Statistics Course Project | Python, Flask, SciPy, NumPy, and Chart.js</p>
   </footer>
 
   <script src="/static/js/main.js"></script>

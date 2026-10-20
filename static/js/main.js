@@ -1,7 +1,7 @@
 /**
  * Main Frontend Application Script
  * Probability and Statistics DNS Project
- * Simplified, Student-Friendly 5-Section Architecture
+ * Clean, Simple, Slider-Free Architecture
  */
 
 // Global Chart Instances to avoid canvas re-use errors
@@ -72,7 +72,7 @@ async function loadDatasetInfo() {
 
     const badge = document.getElementById('metric-dataset-badge');
     if (badge) {
-      badge.textContent = data.is_simulated ? "Simulated sample data" : "Custom uploaded data";
+      badge.textContent = data.is_simulated ? "Simulated sample data" : "Custom dataset";
     }
 
     // Populate dataset selector with friendly names
@@ -83,13 +83,13 @@ async function loadDatasetInfo() {
       opt.value = name;
       let label = name;
       if (name === 'sample_dns_traffic.csv') {
-        label = 'Simulated Sample: Mixed Baseline (1,200 rows)';
+        label = 'Mixed Baseline (1,200 rows)';
       } else if (name === 'sample_high_entropy_tunneling.csv') {
-        label = 'Simulated Sample: Attack Surge (700 rows)';
+        label = 'Attack Surge (700 rows)';
       } else if (name === 'sample_normal_workday.csv') {
-        label = 'Simulated Sample: Routine Browsing (920 rows)';
+        label = 'Routine Browsing (920 rows)';
       } else {
-        label = `Custom CSV: ${name}`;
+        label = name;
       }
       opt.textContent = label;
       if (name === data.dataset_name) opt.selected = true;
@@ -190,49 +190,6 @@ function initDatasetControls() {
     currentPage++;
     loadDatasetRecords();
   });
-
-  // CSV Upload handler with friendly validation feedback
-  const uploadForm = document.getElementById('upload-form');
-  const uploadFile = document.getElementById('upload-file');
-  const uploadStatus = document.getElementById('upload-status');
-
-  uploadForm?.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    if (!uploadFile.files || uploadFile.files.length === 0) {
-      uploadStatus.textContent = 'Please choose a CSV file first.';
-      uploadStatus.style.color = 'var(--suspicious-color)';
-      return;
-    }
-
-    const formData = new FormData();
-    formData.append('file', uploadFile.files[0]);
-
-    uploadStatus.textContent = 'Uploading and processing features...';
-    uploadStatus.style.color = 'var(--text-muted)';
-
-    try {
-      const res = await fetch('/api/dataset/upload', {
-        method: 'POST',
-        body: formData
-      });
-      const data = await res.json();
-      if (data.status === 'success') {
-        uploadStatus.textContent = `Success: Analyzed ${data.rows} records.`;
-        uploadStatus.style.color = 'var(--normal-color)';
-        currentPage = 1;
-        descriptiveCache = null;
-        await loadDatasetInfo();
-        const activeBtn = document.querySelector('.nav-tab-btn.active');
-        if (activeBtn) onTabActivated(activeBtn.getAttribute('data-tab'));
-      } else {
-        uploadStatus.textContent = `Upload Error: ${data.message}`;
-        uploadStatus.style.color = 'var(--suspicious-color)';
-      }
-    } catch (err) {
-      uploadStatus.textContent = 'Upload failed. Please ensure file is valid CSV.';
-      uploadStatus.style.color = 'var(--suspicious-color)';
-    }
-  });
 }
 
 // =============================================================
@@ -265,13 +222,13 @@ function updateDescriptiveView() {
 
   const rows = [
     { label: "Sample Size (n)", n: normal.n, s: suspicious.n, o: overall.n, format: v => v },
-    { label: "Mean (μ / x̄)", n: normal.mean, s: suspicious.mean, o: overall.mean, format: v => v.toFixed(4) },
-    { label: "Median (Q2)", n: normal.median, s: suspicious.median, o: overall.median, format: v => v.toFixed(4) },
-    { label: "Sample Variance (s²)", n: normal.sample_variance, s: suspicious.sample_variance, o: overall.sample_variance, format: v => v.toFixed(4) },
-    { label: "Sample Std Dev (s)", n: normal.sample_std, s: suspicious.sample_std, o: overall.sample_std, format: v => v.toFixed(4) },
-    { label: "Coeff. of Variation (CV %)", n: normal.coefficient_of_variation_pct, s: suspicious.coefficient_of_variation_pct, o: overall.coefficient_of_variation_pct, format: v => v.toFixed(2) + '%' },
-    { label: "1st Quartile (Q1)", n: normal.q1, s: suspicious.q1, o: overall.q1, format: v => v.toFixed(4) },
-    { label: "3rd Quartile (Q3)", n: normal.q3, s: suspicious.q3, o: overall.q3, format: v => v.toFixed(4) },
+    { label: "Mean", n: normal.mean, s: suspicious.mean, o: overall.mean, format: v => v.toFixed(4) },
+    { label: "Median", n: normal.median, s: suspicious.median, o: overall.median, format: v => v.toFixed(4) },
+    { label: "Sample Variance", n: normal.sample_variance, s: suspicious.sample_variance, o: overall.sample_variance, format: v => v.toFixed(4) },
+    { label: "Sample Standard Deviation", n: normal.sample_std, s: suspicious.sample_std, o: overall.sample_std, format: v => v.toFixed(4) },
+    { label: "Coefficient of Variation (%)", n: normal.coefficient_of_variation_pct, s: suspicious.coefficient_of_variation_pct, o: overall.coefficient_of_variation_pct, format: v => v.toFixed(2) + '%' },
+    { label: "First Quartile (Q1)", n: normal.q1, s: suspicious.q1, o: overall.q1, format: v => v.toFixed(4) },
+    { label: "Third Quartile (Q3)", n: normal.q3, s: suspicious.q3, o: overall.q3, format: v => v.toFixed(4) },
     { label: "Interquartile Range (IQR)", n: normal.iqr, s: suspicious.iqr, o: overall.iqr, format: v => v.toFixed(4) },
     { label: "Minimum & Maximum", n: `${normal.min} to ${normal.max}`, s: `${suspicious.min} to ${suspicious.max}`, o: `${overall.min} to ${overall.max}`, format: v => v }
   ];
@@ -291,16 +248,16 @@ function updateDescriptiveView() {
 
   renderHistogramChart(feat, featData.histograms);
 
-  // Viva Explanation
+  // Clean explanation text
   const diffPct = (((suspicious.mean - normal.mean) / normal.mean) * 100).toFixed(1);
   const featName = feat === 'entropy' ? 'Shannon Entropy' : feat === 'query_length' ? 'Query Length' : 'Inter-Arrival Time';
   const unit = feat === 'entropy' ? 'bits/char' : feat === 'query_length' ? 'characters' : 'seconds';
 
   document.getElementById('desc-interpretation-text').innerHTML = `
-    <strong>Viva Explanation for ${featName}:</strong><br>
-    • <strong>Central Tendency:</strong> Normal queries average <code>${normal.mean} ${unit}</code>, while suspicious queries average <code>${suspicious.mean} ${unit}</code> (a <strong>${Math.abs(diffPct)}% ${diffPct >= 0 ? 'increase' : 'decrease'}</strong>).<br>
-    • <strong>Variability (CV):</strong> Normal CV is <code>${normal.coefficient_of_variation_pct}%</code> vs suspicious CV <code>${suspicious.coefficient_of_variation_pct}%</code>. A lower CV indicates tighter clustering around the mean, while a higher CV indicates greater relative dispersion.<br>
-    • <strong>Distribution Separation:</strong> The histogram confirms that the two groups occupy distinct regions of the frequency distribution, making ${featName} a valuable statistical differentiator.
+    <strong>Statistical Takeaway:</strong><br>
+    • <strong>Central Tendency:</strong> Normal queries average <code>${normal.mean} ${unit}</code>, while suspicious queries average <code>${suspicious.mean} ${unit}</code> (${Math.abs(diffPct)}% ${diffPct >= 0 ? 'increase' : 'decrease'}).<br>
+    • <strong>Relative Variability:</strong> Normal CV is <code>${normal.coefficient_of_variation_pct}%</code> versus suspicious CV <code>${suspicious.coefficient_of_variation_pct}%</code>. A lower CV indicates tighter clustering around the mean.<br>
+    • <strong>Distribution Separation:</strong> The histogram shows that normal and suspicious queries form distinct frequency distributions, confirming that ${featName} provides clear separation.
   `;
 }
 
@@ -320,14 +277,14 @@ function renderHistogramChart(feature, histograms) {
         {
           label: 'Normal Traffic Frequency',
           data: normHist.counts,
-          backgroundColor: 'rgba(5, 150, 105, 0.65)',
+          backgroundColor: 'rgba(5, 150, 105, 0.7)',
           borderColor: '#059669',
           borderWidth: 1
         },
         {
           label: 'Suspicious Traffic Frequency',
           data: suspHist.counts,
-          backgroundColor: 'rgba(220, 38, 38, 0.65)',
+          backgroundColor: 'rgba(220, 38, 38, 0.7)',
           borderColor: '#dc2626',
           borderWidth: 1
         }
@@ -353,50 +310,42 @@ function renderHistogramChart(feature, histograms) {
 // =============================================================
 
 async function loadProbabilityModels() {
-  const prior = parseFloat(document.getElementById('bayes-prior-slider').value);
-  const sens = parseFloat(document.getElementById('bayes-sens-slider').value);
-  const fpr = parseFloat(document.getElementById('bayes-fpr-slider').value);
-  const nBatch = parseInt(document.getElementById('binom-n-slider').value);
-
   try {
     const res = await fetch('/api/stats/probability', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        prior_tunnel: prior,
-        sensitivity: sens,
-        fpr: fpr,
-        n_batch: nBatch
+        n_batch: 30
       })
     });
     const data = await res.json();
     if (data.status !== 'success') return;
 
-    // Empirical Base Rates
+    // Empirical Base Rates (plain text, no $ signs)
     const ep = data.empirical_probs;
-    document.getElementById('prob-p-normal').textContent = `${ep.p_normal} (${(ep.p_normal * 100).toFixed(1)}%, n=${ep.normal_count})`;
-    document.getElementById('prob-p-suspicious').textContent = `${ep.p_suspicious} (${(ep.p_suspicious * 100).toFixed(1)}%, n=${ep.suspicious_count})`;
+    document.getElementById('prob-p-normal').textContent = `${(ep.p_normal * 100).toFixed(1)}% (${ep.normal_count.toLocaleString()} queries)`;
+    document.getElementById('prob-p-suspicious').textContent = `${(ep.p_suspicious * 100).toFixed(1)}% (${ep.suspicious_count.toLocaleString()} queries)`;
 
     // Bayes' Theorem
     const bayes = data.bayes_theorem;
     document.getElementById('bayes-posterior-val').textContent = `${bayes.posterior_pct}%`;
     document.getElementById('bayes-npv-val').textContent = `${(bayes.posterior_normal_given_no_alarm * 100).toFixed(1)}%`;
     document.getElementById('bayes-note-text').innerHTML = `
-      <strong>The Base Rate Fallacy:</strong> Even with high sensitivity (${(bayes.sensitivity * 100).toFixed(0)}%), if the true prior rate of suspicious queries is small (${(bayes.prior_tunnel * 100).toFixed(1)}%), the probability of a true positive given an alarm is <strong>${bayes.posterior_pct}%</strong> because the overwhelming volume of normal queries generates false alarms.
+      Even with high sensitivity (94%), if the true proportion of suspicious traffic is low (${(bayes.prior_tunnel * 100).toFixed(1)}%), the probability of a true positive given an alarm is <strong>${bayes.posterior_pct}%</strong>. This illustrates the Base Rate Fallacy: false alarms can occur when normal traffic overwhelmingly outnumbers attacks.
     `;
 
     // Binomial Distribution
     const binom = data.binomial_batch;
-    document.getElementById('binom-mean-val').textContent = `Expected Value E[X] = np = ${binom.mean}`;
-    document.getElementById('binom-var-val').textContent = `Variance Var(X) = ${binom.variance} (σ = ${binom.std_dev})`;
+    document.getElementById('binom-mean-val').textContent = `Expected Value: ${binom.mean}`;
+    document.getElementById('binom-var-val').textContent = `Variance: ${binom.variance} (Std Dev = ${binom.std_dev})`;
     renderBinomialChart(binom);
 
     // Normal Fit & Confidence Interval
     const nf = data.normal_fit;
     if (nf && nf.ci_95) {
-      document.getElementById('norm-ci95-val').textContent = `[ ${nf.ci_95.lower_bound} , ${nf.ci_95.upper_bound} ] bits`;
+      document.getElementById('norm-ci95-val').textContent = `[ ${nf.ci_95.lower_bound} , ${nf.ci_95.upper_bound} ] bits/char`;
       document.getElementById('norm-ci-interpretation').innerHTML = `
-        <strong>Viva Interpretation:</strong> We are 95% confident that the true population mean entropy of DNS queries lies between <strong>${nf.ci_95.lower_bound}</strong> and <strong>${nf.ci_95.upper_bound}</strong> bits per character (Margin of Error: ±${nf.ci_95.margin_of_error}).
+        We are 95% confident that the true population mean entropy of DNS queries lies between <strong>${nf.ci_95.lower_bound}</strong> and <strong>${nf.ci_95.upper_bound}</strong> bits per character (Margin of Error: ±${nf.ci_95.margin_of_error}).
       `;
     }
     if (nf && nf.empirical_rule) {
@@ -416,13 +365,13 @@ function renderBinomialChart(binom) {
   charts['binomialChart'] = new Chart(ctx, {
     type: 'bar',
     data: {
-      labels: binom.k_values,
+      labels: binom.k_values.slice(0, 16),
       datasets: [
         {
-          label: 'P(X = k) [PMF]',
-          data: binom.pmf,
-          backgroundColor: 'rgba(37, 99, 235, 0.65)',
-          borderColor: '#2563eb',
+          label: 'Probability P(X = k)',
+          data: binom.pmf.slice(0, 16),
+          backgroundColor: 'rgba(79, 70, 229, 0.7)',
+          borderColor: '#4f46e5',
           borderWidth: 1
         }
       ]
@@ -431,7 +380,7 @@ function renderBinomialChart(binom) {
       responsive: true,
       maintainAspectRatio: false,
       scales: {
-        x: { title: { display: true, text: `Number of Suspicious Queries (k) in batch n=${binom.n}` } },
+        x: { title: { display: true, text: `Number of Suspicious Queries (k) in batch n=30` } },
         y: { title: { display: true, text: 'Probability P(X = k)' }, beginAtZero: true }
       }
     }
@@ -480,9 +429,6 @@ async function loadHypothesisTests() {
 // =============================================================
 
 async function loadCorrelationAndResults() {
-  const entropyThresh = parseFloat(document.getElementById('det-entropy-slider').value);
-  const iatThresh = parseFloat(document.getElementById('det-iat-slider').value);
-
   try {
     // 1. Fetch Correlation & Regression
     const resReg = await fetch('/api/stats/regression');
@@ -497,21 +443,20 @@ async function loadCorrelationAndResults() {
       document.getElementById('reg-r2').textContent = `${(reg.r_squared * 100).toFixed(1)}% (R² = ${reg.r_squared})`;
       document.getElementById('reg-equation').textContent = `Entropy = ${reg.intercept} + (${reg.slope} × Length)`;
       document.getElementById('reg-interpretation-text').innerHTML = `
-        <strong>Viva Interpretation:</strong><br>
-        • <strong>Pearson r = ${reg.pearson_r}:</strong> Indicates a ${reg.pearson_r > 0.6 ? 'strong positive' : 'moderate'} linear correlation. As query length increases, Shannon entropy also increases because encoded payloads introduce diverse character sets.<br>
-        • <strong>R² = ${(reg.r_squared * 100).toFixed(1)}%:</strong> ${(reg.r_squared * 100).toFixed(1)}% of the total variation in Shannon entropy can be explained by query length.
+        • <strong>Pearson r = ${reg.pearson_r}:</strong> Demonstrates a ${reg.pearson_r > 0.6 ? 'strong positive' : 'moderate'} linear correlation. As query length increases, Shannon entropy also increases because encoded tunneling payloads introduce a wide variety of alphanumeric characters.<br>
+        • <strong>R² = ${(reg.r_squared * 100).toFixed(1)}%:</strong> ${(reg.r_squared * 100).toFixed(1)}% of the total variance in Shannon entropy is explained by domain query length.
       `;
 
       renderRegressionChart(reg);
     }
 
-    // 2. Fetch Supporting Detection Benchmark
+    // 2. Fetch Supporting Detection Benchmark (with default optimal thresholds)
     const resDet = await fetch('/api/detector/evaluate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        entropy_threshold: entropyThresh,
-        iat_threshold: iatThresh,
+        entropy_threshold: 3.75,
+        iat_threshold: 0.30,
         length_threshold: 40
       })
     });
@@ -530,9 +475,9 @@ async function loadCorrelationAndResults() {
       const tbody = document.getElementById('det-metrics-tbody');
       tbody.innerHTML = '';
       const list = [
-        { name: "Entropy-Only", obj: b.entropy_only },
-        { name: "Timing-Only", obj: b.timing_only },
-        { name: "Combined Detector", obj: b.combined }
+        { name: "Entropy-Only Threshold", obj: b.entropy_only },
+        { name: "Timing-Only Threshold", obj: b.timing_only },
+        { name: "Combined Approach", obj: b.combined }
       ];
       list.forEach(item => {
         const m = item.obj.results.metrics;
@@ -563,8 +508,8 @@ function renderRegressionChart(reg) {
         {
           label: 'DNS Queries (Sample)',
           data: reg.scatter_points,
-          backgroundColor: 'rgba(37, 99, 235, 0.45)',
-          borderColor: '#2563eb',
+          backgroundColor: 'rgba(79, 70, 229, 0.45)',
+          borderColor: '#4f46e5',
           pointRadius: 3
         },
         {
@@ -589,42 +534,11 @@ function renderRegressionChart(reg) {
   });
 }
 
-// Slider listeners to sync visible text and auto-refresh
-function initSliderListeners() {
-  // Bayes sliders
-  const bayesSliders = ['bayes-prior-slider', 'bayes-sens-slider', 'bayes-fpr-slider', 'binom-n-slider'];
-  bayesSliders.forEach(id => {
-    const el = document.getElementById(id);
-    if (el) {
-      el.addEventListener('input', () => {
-        const valSpan = document.getElementById(`${id}-val`);
-        if (valSpan) valSpan.textContent = el.value;
-        loadProbabilityModels();
-      });
-    }
-  });
-
-  // Descriptive feature select
-  document.getElementById('desc-feature-select')?.addEventListener('change', updateDescriptiveView);
-
-  // Detector benchmark sliders
-  const detSliders = ['det-entropy-slider', 'det-iat-slider'];
-  detSliders.forEach(id => {
-    const el = document.getElementById(id);
-    if (el) {
-      el.addEventListener('input', () => {
-        const valSpan = document.getElementById(`${id}-val`);
-        if (valSpan) valSpan.textContent = el.value;
-        loadCorrelationAndResults();
-      });
-    }
-  });
-}
-
 // Global initialization
 document.addEventListener('DOMContentLoaded', () => {
   initTabs();
   initDatasetControls();
-  initSliderListeners();
+  // Descriptive feature select listener
+  document.getElementById('desc-feature-select')?.addEventListener('change', updateDescriptiveView);
   loadDatasetInfo();
 });

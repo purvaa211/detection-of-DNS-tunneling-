@@ -22,10 +22,9 @@ We analyze two primary continuous random variables:
 The application is streamlined into **5 clean, interactive sections** designed for college viva presentation:
 
 ### 1. Overview
-- Summary cards showing total queries, normal vs. suspicious counts and percentages, mean query length, mean Shannon entropy, and mean inter-arrival time.
-- Clear distinction between preloaded simulated educational datasets and user-uploaded data.
-- Searchable, filterable, and paginated interactive data table.
-- CSV upload with automatic feature extraction and validation error reporting.
+- Summary metric cards showing total queries, normal vs. suspicious counts and percentages, mean query length, mean Shannon entropy, and mean inter-arrival time.
+- Searchable, filterable, and paginated interactive DNS query records table.
+- Active dataset selector allowing instant switching between sample datasets (Mixed Baseline, Attack Surge, and Routine Browsing) with CSV export capability.
 
 ### 2. Data Analysis
 - Complete descriptive statistics table: Sample size ($n$), Mean ($\bar{x}$), Median ($Q_2$), Sample Variance ($s^2$), Standard Deviation ($s$), Coefficient of Variation ($CV\%$), 1st Quartile ($Q_1$), 3rd Quartile ($Q_3$), Interquartile Range ($IQR$), and Range.
@@ -35,7 +34,7 @@ The application is streamlined into **5 clean, interactive sections** designed f
 
 ### 3. Probability & Distributions
 - **Empirical Base Rates:** $P(\text{Normal})$ and $P(\text{Suspicious})$ from dataset.
-- **Bayes' Theorem & The Base Rate Fallacy:** Interactive conditional probability calculator demonstrating why false alarms occur when prior base rates are low:
+- **Bayes' Theorem & The Base Rate Fallacy:** Conditional probability analysis demonstrating why false alarms occur when prior base rates are low:
   $$P(\text{Suspicious} \mid \text{Alarm}) = \frac{P(\text{Alarm} \mid \text{Suspicious}) P(\text{Suspicious})}{P(\text{Alarm})}$$
 - **Binomial Distribution Model:** Models the count of suspicious queries $X \sim \text{Binomial}(n, p)$ in a sliding batch of $n$ queries with PMF bar chart, expected value $E[X] = np$, and variance $\text{Var}(X) = np(1-p)$.
 - **Normal Distribution Fit & Confidence Interval:** Evaluates empirical entropy against a normal distribution curve and calculates the **95% Confidence Interval for the mean entropy** using Student's t-distribution:

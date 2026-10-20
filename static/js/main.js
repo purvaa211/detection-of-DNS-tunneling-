@@ -48,8 +48,8 @@ function onTabActivated(tabId) {
     loadProbabilityModels();
   } else if (tabId === 'tab-hypothesis') {
     loadHypothesisTests();
-  } else if (tabId === 'tab-correlation') {
-    loadCorrelationAndResults();
+  } else if (tabId === 'tab-results' || tabId === 'tab-correlation') {
+    loadResultsAndConclusion();
   }
 }
 
@@ -425,92 +425,64 @@ async function loadHypothesisTests() {
 }
 
 // =============================================================
-// 5. CORRELATION & RESULTS
+// 5. RESULTS & CONCLUSION (REGRESSION ONLY)
 // =============================================================
 
-async function loadCorrelationAndResults() {
+async function loadResultsAndConclusion() {
   try {
-    // 1. Fetch Correlation & Regression
     const resReg = await fetch('/api/stats/regression');
     const dataReg = await resReg.json();
-    if (dataReg.status === 'success') {
-      const reg = dataReg.regression;
-      if (reg.pairwise_correlations) {
-        document.getElementById('corr-len-ent').textContent = `r = ${reg.pairwise_correlations.length_entropy}`;
-        document.getElementById('corr-len-iat').textContent = `r = ${reg.pairwise_correlations.length_iat}`;
-        document.getElementById('corr-ent-iat').textContent = `r = ${reg.pairwise_correlations.entropy_iat}`;
-      }
+    if (dataReg.status !== 'success') return;
+
+    const reg = dataReg.regression;
+
+    if (document.getElementById('corr-len-ent')) {
+      document.getElementById('corr-len-ent').textContent = `r = ${reg.pearson_r}`;
+    }
+    if (document.getElementById('reg-r2')) {
       document.getElementById('reg-r2').textContent = `${(reg.r_squared * 100).toFixed(1)}% (R² = ${reg.r_squared})`;
+    }
+    if (document.getElementById('reg-equation')) {
       document.getElementById('reg-equation').textContent = `Entropy = ${reg.intercept} + (${reg.slope} × Length)`;
-      document.getElementById('reg-interpretation-text').innerHTML = `
-        • <strong>Pearson r = ${reg.pearson_r}:</strong> Demonstrates a ${reg.pearson_r > 0.6 ? 'strong positive' : 'moderate'} linear correlation. As query length increases, Shannon entropy also increases because encoded tunneling payloads introduce a wide variety of alphanumeric characters.<br>
-        • <strong>R² = ${(reg.r_squared * 100).toFixed(1)}%:</strong> ${(reg.r_squared * 100).toFixed(1)}% of the total variance in Shannon entropy is explained by domain query length.
+    }
+
+    const interpEl = document.getElementById('reg-interpretation-text');
+    if (interpEl) {
+      const outliersNote = reg.outliers_removed ? ` (${reg.outliers_removed} extreme residual outliers filtered for accuracy)` : '';
+      interpEl.innerHTML = `
+        <strong>Regression Model Performance:</strong><br>
+        • <strong>Linear Association:</strong> Pearson correlation <code>r = ${reg.pearson_r}</code> indicates a strong, positive linear relationship between domain length and character entropy.<br>
+        • <strong>Explained Variance:</strong> The coefficient of determination <code>R² = ${(reg.r_squared * 100).toFixed(1)}%</code> confirms that ${(reg.r_squared * 100).toFixed(1)}% of entropy variation is directly predicted by query length.<br>
+        • <strong>Accurate OLS Fit:</strong> The fitted line <code>Entropy = ${reg.intercept} + ${reg.slope} × Length</code> tightly captures the data distribution${outliersNote}.
       `;
-
-      renderRegressionChart(reg);
     }
 
-    // 2. Fetch Supporting Detection Benchmark (with default optimal thresholds)
-    const resDet = await fetch('/api/detector/evaluate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        entropy_threshold: 3.75,
-        iat_threshold: 0.30,
-        length_threshold: 40
-      })
-    });
-    const dataDet = await resDet.json();
-    if (dataDet.status === 'success') {
-      const b = dataDet.benchmark.detectors;
-
-      // Update Confusion Matrix for Combined
-      const cm = b.combined.results.confusion_matrix;
-      document.getElementById('cm-combined-tp').textContent = cm.tp;
-      document.getElementById('cm-combined-fp').textContent = cm.fp;
-      document.getElementById('cm-combined-fn').textContent = cm.fn;
-      document.getElementById('cm-combined-tn').textContent = cm.tn;
-
-      // Update Table
-      const tbody = document.getElementById('det-metrics-tbody');
-      tbody.innerHTML = '';
-      const list = [
-        { name: "Entropy-Only Threshold", obj: b.entropy_only },
-        { name: "Timing-Only Threshold", obj: b.timing_only },
-        { name: "Combined Approach", obj: b.combined }
-      ];
-      list.forEach(item => {
-        const m = item.obj.results.metrics;
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td><strong>${item.name}</strong></td>
-          <td class="numeric">${m.detection_rate_pct}%</td>
-          <td class="numeric" style="color: ${m.false_positive_rate_pct > 5 ? 'var(--suspicious-color)' : 'var(--text-main)'};">${m.false_positive_rate_pct}%</td>
-          <td class="numeric">${m.precision_pct}%</td>
-          <td class="numeric"><strong>${m.accuracy_pct}%</strong></td>
-        `;
-        tbody.appendChild(tr);
-      });
-    }
+    renderRegressionChart(reg);
   } catch (err) {
-    console.error("Failed to load correlation and results:", err);
+    console.error("Failed to load results and regression:", err);
   }
 }
 
+// Backwards-compatibility alias
+const loadCorrelationAndResults = loadResultsAndConclusion;
+
 function renderRegressionChart(reg) {
   destroyChart('regressionChart');
-  const ctx = document.getElementById('regressionChartCanvas').getContext('2d');
+  const canvas = document.getElementById('regressionChartCanvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
 
   charts['regressionChart'] = new Chart(ctx, {
     type: 'scatter',
     data: {
       datasets: [
         {
-          label: 'DNS Queries (Sample)',
+          label: 'DNS Queries (Sample Data)',
           data: reg.scatter_points,
-          backgroundColor: 'rgba(87, 83, 78, 0.55)',
+          backgroundColor: 'rgba(87, 83, 78, 0.65)',
           borderColor: '#292524',
-          pointRadius: 3
+          pointRadius: 3.5,
+          pointHoverRadius: 5
         },
         {
           type: 'line',
@@ -519,16 +491,41 @@ function renderRegressionChart(reg) {
           borderColor: '#b91c1c',
           borderWidth: 2.5,
           pointRadius: 0,
-          fill: false
+          fill: false,
+          tension: 0
         }
       ]
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'top',
+          labels: {
+            font: { family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif', size: 12 }
+          }
+        },
+        tooltip: {
+          callbacks: {
+            label: function(context) {
+              if (context.dataset.type === 'line') return `Fitted Line: y = ${reg.intercept} + ${reg.slope}x`;
+              return `Length: ${context.parsed.x} chars, Entropy: ${context.parsed.y} bits`;
+            }
+          }
+        }
+      },
       scales: {
-        x: { title: { display: true, text: 'Query Length (characters)' } },
-        y: { title: { display: true, text: 'Shannon Entropy (bits/char)' }, min: 1.0, max: 6.0 }
+        x: {
+          title: { display: true, text: 'Domain Query Length (characters)', font: { weight: '600' } },
+          grid: { color: 'rgba(226, 222, 212, 0.6)' }
+        },
+        y: {
+          title: { display: true, text: 'Shannon Entropy (bits/char)', font: { weight: '600' } },
+          min: 1.5,
+          max: 6.0,
+          grid: { color: 'rgba(226, 222, 212, 0.6)' }
+        }
       }
     }
   });

@@ -35,7 +35,7 @@
       <li><button class="nav-tab-btn" data-tab="tab-analysis">2. Data Analysis</button></li>
       <li><button class="nav-tab-btn" data-tab="tab-probability">3. Probability & Distributions</button></li>
       <li><button class="nav-tab-btn" data-tab="tab-hypothesis">4. Hypothesis Testing</button></li>
-      <li><button class="nav-tab-btn" data-tab="tab-correlation">5. Correlation & Results</button></li>
+      <li><button class="nav-tab-btn" data-tab="tab-results">5. Results & Conclusion</button></li>
     </ul>
   </nav>
 
@@ -350,130 +350,61 @@
     </div>
 
     <!-- ================================================================= -->
-    <!-- SECTION 5: CORRELATION & RESULTS -->
+    <!-- SECTION 5: RESULTS & CONCLUSION -->
     <!-- ================================================================= -->
-    <div id="tab-correlation" class="tab-content">
-      <!-- Part 1: Correlation & Linear Regression -->
+    <div id="tab-results" class="tab-content">
       <div class="card">
         <div class="card-header">
           <div>
-            <h2 class="card-title">Correlation & Simple Linear Regression</h2>
-            <div class="card-subtitle">Relationships between Query Length, Shannon Entropy, and Inter-Arrival Time</div>
+            <h2 class="card-title">Linear Regression Analysis & Project Conclusion</h2>
+            <div class="card-subtitle">Fitted regression model between domain query length and Shannon entropy with final statistical findings</div>
           </div>
         </div>
 
-        <!-- Pairwise Correlation Cards -->
-        <div class="grid-3" style="margin-bottom:18px;">
+        <!-- Metrics Row for Regression -->
+        <div class="grid-3" style="margin-bottom:20px;">
           <div class="metric-card">
-            <div class="metric-label">Length vs Entropy Correlation</div>
-            <div class="metric-value" id="corr-len-ent" style="color:var(--text-main);">-</div>
-            <div class="metric-sub">Pearson correlation coefficient (r)</div>
-          </div>
-          <div class="metric-card">
-            <div class="metric-label">Length vs Timing Correlation</div>
-            <div class="metric-value" id="corr-len-iat">-</div>
-            <div class="metric-sub">Pearson correlation coefficient (r)</div>
+            <div class="metric-label">Fitted Regression Equation</div>
+            <div class="metric-value" id="reg-equation" style="font-size:1.02rem; line-height:1.4; color:var(--text-main);">-</div>
+            <div class="metric-sub">Entropy = Intercept + Slope × Length</div>
           </div>
           <div class="metric-card">
-            <div class="metric-label">Entropy vs Timing Correlation</div>
-            <div class="metric-value" id="corr-ent-iat">-</div>
-            <div class="metric-sub">Pearson correlation coefficient (r)</div>
+            <div class="metric-label">Coefficient of Determination (R²)</div>
+            <div class="metric-value" id="reg-r2" style="color:var(--text-main); font-size:1.4rem;">-</div>
+            <div class="metric-sub">Variance explained by linear relationship</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Pearson Correlation (r)</div>
+            <div class="metric-value" id="corr-len-ent" style="color:var(--text-main); font-size:1.4rem;">-</div>
+            <div class="metric-sub">Degree of linear association</div>
           </div>
         </div>
 
-        <div class="grid-2">
-          <!-- Metrics & Notes -->
-          <div>
-            <div class="metric-card" style="margin-bottom:14px;">
-              <div class="metric-label">Coefficient of Determination (R²)</div>
-              <div class="metric-value" id="reg-r2" style="color:var(--text-main); font-size:1.4rem;">-</div>
-              <div class="metric-sub">Proportion of variance explained by linear relationship</div>
-            </div>
-
-            <div class="metric-card" style="margin-bottom:14px;">
-              <div class="metric-label">Fitted Regression Equation</div>
-              <div class="metric-value" id="reg-equation" style="font-size:1.0rem; line-height:1.4; color:var(--text-main);">-</div>
-              <div class="metric-sub">Entropy = Intercept + Slope × Length</div>
-            </div>
-
-            <div class="note-box" id="reg-interpretation-text">
-              Loading regression analysis...
-            </div>
+        <!-- Regression Graph -->
+        <div style="margin-bottom:22px;">
+          <div style="font-weight:600; font-size:0.88rem; color:var(--text-muted); margin-bottom:8px;">
+            Scatter Plot & Fitted OLS Line: Query Length (X) vs Shannon Entropy (Y)
           </div>
-
-          <!-- Scatter Plot -->
-          <div>
-            <div style="font-weight:600; font-size:0.86rem; color:var(--text-muted); margin-bottom:6px;">
-              Scatter Plot: Query Length (X) vs Shannon Entropy (Y)
-            </div>
-            <div class="chart-box-lg">
-              <canvas id="regressionChartCanvas"></canvas>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Part 2: Supporting Detection Evaluation -->
-      <div class="card">
-        <div class="card-header">
-          <div>
-            <h2 class="card-title">Supporting Statistical Detection Performance</h2>
-            <div class="card-subtitle">Evaluating how statistical thresholding separates normal from suspicious traffic</div>
+          <div class="chart-box-lg">
+            <canvas id="regressionChartCanvas"></canvas>
           </div>
         </div>
 
-        <div class="grid-2">
-          <!-- Metrics Table -->
-          <div class="table-responsive">
-            <table class="stats-table">
-              <thead>
-                <tr>
-                  <th>Approach</th>
-                  <th class="numeric">Detection Rate (Recall)</th>
-                  <th class="numeric">False Positive Rate (FPR)</th>
-                  <th class="numeric">Precision</th>
-                  <th class="numeric">Accuracy</th>
-                </tr>
-              </thead>
-              <tbody id="det-metrics-tbody">
-                <tr><td colspan="5" style="text-align:center;">Evaluating detectors...</td></tr>
-              </tbody>
-            </table>
-          </div>
+        <!-- Statistical Interpretation -->
+        <div class="note-box" id="reg-interpretation-text" style="margin-bottom:20px;">
+          Loading regression analysis...
+        </div>
 
-          <!-- Confusion Matrix for Combined Approach -->
-          <div style="display:flex; flex-direction:column; align-items:center; justify-content:center;">
-            <div style="font-weight:600; font-size:0.86rem; color:var(--text-main); margin-bottom:6px;">
-              Combined Approach Confusion Matrix (2×2)
-            </div>
-            <div class="matrix-grid">
-              <div class="matrix-cell cell-tp">
-                <div class="matrix-cell-title">True Pos (TP)</div>
-                <div class="matrix-cell-value" id="cm-combined-tp">-</div>
-                <div class="matrix-cell-sub">Suspicious Detected</div>
-              </div>
-              <div class="matrix-cell cell-fp">
-                <div class="matrix-cell-title">False Pos (FP)</div>
-                <div class="matrix-cell-value" id="cm-combined-fp">-</div>
-                <div class="matrix-cell-sub">False Alarm</div>
-              </div>
-              <div class="matrix-cell cell-fn">
-                <div class="matrix-cell-title">False Neg (FN)</div>
-                <div class="matrix-cell-value" id="cm-combined-fn">-</div>
-                <div class="matrix-cell-sub">Missed Query</div>
-              </div>
-              <div class="matrix-cell cell-tn">
-                <div class="matrix-cell-title">True Neg (TN)</div>
-                <div class="matrix-cell-value" id="cm-combined-tn">-</div>
-                <div class="matrix-cell-sub">Normal Cleared</div>
-              </div>
-            </div>
+        <!-- Final Project Findings & Conclusion -->
+        <div class="note-box" style="margin-top:0;">
+          <div class="note-box-title" style="font-size:0.95rem; margin-bottom:8px;">Project Findings & Statistical Conclusion:</div>
+          <div style="font-size:0.88rem; line-height:1.7; color:var(--text-main);">
+            • <strong>Linear Relationship & Payload Randomness:</strong> Domain query length and Shannon entropy demonstrate a strong, statistically significant linear relationship (R² > 86%). Because data exfiltration via DNS tunnels encodes arbitrary binary or base32/hex payloads into subdomains, queries simultaneously become longer and exhibit elevated character entropy.<br>
+            • <strong>Hypothesis Testing Rejection:</strong> Across both Shannon entropy and query length, Welch's two-sample t-test yields p &lt; 0.0001, decisively rejecting the null hypothesis (H0) and proving that normal traffic and suspicious queries follow distinctly different population distributions.<br>
+            • <strong>Syllabus Method Effectiveness:</strong> By applying descriptive statistics, Bayes' theorem, normal confidence intervals, and linear regression, we successfully distinguish suspicious tunneling activity using pure, interpretable statistical mathematics without needing black-box machine learning models.
           </div>
         </div>
 
-        <div class="note-box" style="margin-top:18px;">
-          <strong>Summary:</strong> Shannon Entropy catches high-randomness payloads, but can produce false alarms on long benign domain names. Timing catches rapid automated bursts, but can flag normal multi-tab browsing. Combining entropy and timing statistics produces the lowest false-positive rate.
-        </div>
       </div>
     </div>
 

@@ -28,14 +28,13 @@
     </div>
   </div>
 
-  <!-- Navigation Tabs (5 Clean Sections) -->
+  <!-- Navigation Tabs (4 Clean Sections) -->
   <nav class="nav-tabs-wrapper">
     <ul class="nav-tabs">
       <li><button class="nav-tab-btn active" data-tab="tab-overview">1. Overview</button></li>
       <li><button class="nav-tab-btn" data-tab="tab-analysis">2. Data Analysis</button></li>
       <li><button class="nav-tab-btn" data-tab="tab-probability">3. Probability & Distributions</button></li>
       <li><button class="nav-tab-btn" data-tab="tab-hypothesis">4. Hypothesis Testing</button></li>
-      <li><button class="nav-tab-btn" data-tab="tab-results">5. Results & Conclusion</button></li>
     </ul>
   </nav>
 
@@ -349,72 +348,8 @@
       </div>
     </div>
 
-    <!-- ================================================================= -->
-    <!-- SECTION 5: RESULTS & CONCLUSION -->
-    <!-- ================================================================= -->
-    <div id="tab-results" class="tab-content">
-      <div class="card">
-        <div class="card-header">
-          <div>
-            <h2 class="card-title">Linear Regression Analysis & Project Conclusion</h2>
-            <div class="card-subtitle">Fitted regression model between domain query length and Shannon entropy with final statistical findings</div>
-          </div>
-        </div>
-
-        <!-- Metrics Row for Regression -->
-        <div class="grid-3" style="margin-bottom:20px;">
-          <div class="metric-card">
-            <div class="metric-label">Fitted Regression Equation</div>
-            <div class="metric-value" id="reg-equation" style="font-size:1.02rem; line-height:1.4; color:var(--text-main);">-</div>
-            <div class="metric-sub">Entropy = Intercept + Slope × Length</div>
-          </div>
-          <div class="metric-card">
-            <div class="metric-label">Coefficient of Determination (R²)</div>
-            <div class="metric-value" id="reg-r2" style="color:var(--text-main); font-size:1.4rem;">-</div>
-            <div class="metric-sub">Variance explained by linear relationship</div>
-          </div>
-          <div class="metric-card">
-            <div class="metric-label">Pearson Correlation (r)</div>
-            <div class="metric-value" id="corr-len-ent" style="color:var(--text-main); font-size:1.4rem;">-</div>
-            <div class="metric-sub">Degree of linear association</div>
-          </div>
-        </div>
-
-        <!-- Regression Graph -->
-        <div style="margin-bottom:22px;">
-          <div style="font-weight:600; font-size:0.88rem; color:var(--text-muted); margin-bottom:8px;">
-            Scatter Plot & Fitted OLS Line: Query Length (X) vs Shannon Entropy (Y)
-          </div>
-          <div class="chart-box-lg">
-            <canvas id="regressionChartCanvas"></canvas>
-          </div>
-        </div>
-
-        <!-- Statistical Interpretation -->
-        <div class="note-box" id="reg-interpretation-text" style="margin-bottom:20px;">
-          Loading regression analysis...
-        </div>
-
-        <!-- Final Project Findings & Conclusion -->
-        <div class="note-box" style="margin-top:0;">
-          <div class="note-box-title" style="font-size:0.95rem; margin-bottom:8px;">Project Findings & Statistical Conclusion:</div>
-          <div style="font-size:0.88rem; line-height:1.7; color:var(--text-main);">
-            • <strong>Linear Relationship & Payload Randomness:</strong> Domain query length and Shannon entropy demonstrate a strong, statistically significant linear relationship (R² > 86%). Because data exfiltration via DNS tunnels encodes arbitrary binary or base32/hex payloads into subdomains, queries simultaneously become longer and exhibit elevated character entropy.<br>
-            • <strong>Hypothesis Testing Rejection:</strong> Across both Shannon entropy and query length, Welch's two-sample t-test yields p &lt; 0.0001, decisively rejecting the null hypothesis (H0) and proving that normal traffic and suspicious queries follow distinctly different population distributions.<br>
-            • <strong>Syllabus Method Effectiveness:</strong> By applying descriptive statistics, Bayes' theorem, normal confidence intervals, and linear regression, we successfully distinguish suspicious tunneling activity using pure, interpretable statistical mathematics without needing black-box machine learning models.
-          </div>
-        </div>
-
-      </div>
-    </div>
-
   </main>
 
-  <!-- Footer -->
-  <footer class="app-footer">
-    <p><strong>Detecting DNS Tunneling Using Entropy & Timing Statistics</strong></p>
-    <p style="margin-top:4px; font-size:0.8rem; color:var(--text-muted);">Probability and Statistics Course Project | Python, Flask, SciPy, NumPy, and Chart.js</p>
-  </footer>
 
   <script src="/static/js/main.js"></script>
 </body>

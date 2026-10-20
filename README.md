@@ -19,7 +19,7 @@ We analyze two primary continuous random variables:
 
 ## 2. Website Navigation & Sections
 
-The application is streamlined into **5 clean, interactive sections** designed for college viva presentation:
+The application is streamlined into **4 clean, interactive sections** designed for college viva presentation:
 
 ### 1. Overview
 - Summary metric cards showing total queries, normal vs. suspicious counts and percentages, mean query length, mean Shannon entropy, and mean inter-arrival time.
@@ -46,15 +46,6 @@ The application is streamlined into **5 clean, interactive sections** designed f
 - Evaluates test statistics, degrees of freedom, Cohen's d effect size, and p-values for Entropy, Query Length, and Inter-Arrival Time.
 - Clear viva conclusion explaining that $p < 0.001$ rejects $H_0$ and proves statistically significant separation.
 - Explanation of Type I Error (False Positive, $\alpha$) and Type II Error (False Negative, $\beta$).
-
-### 5. Correlation & Results
-- **Correlation & Simple Linear Regression:**
-  - Pairwise Pearson correlation ($r$) between Query Length, Shannon Entropy, and Timing.
-  - Scatter plot with Ordinary Least Squares (OLS) fitted regression line: $\hat{y} = \beta_0 + \beta_1 x$.
-  - Displays $R^2$ (proportion of variance in entropy explained by query length) and plain-language interpretation.
-- **Supporting Detection Evaluation:**
-  - Benchmarks simple threshold-based approaches (Entropy-Only, Timing-Only, and Combined).
-  - Displays Detection Rate (Recall / Sensitivity), False Positive Rate (FPR), Precision, Accuracy, and a $2 \times 2$ Confusion Matrix ($TP, FP, TN, FN$).
 
 ---
 

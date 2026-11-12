@@ -50,10 +50,6 @@ const sectionHeaders = {
     title: 'Hypothesis Testing & Confidence Intervals',
     desc: "Two-sample Welch's t-test, Cohen's d effect sizes, and Student's t confidence intervals"
   },
-  'tab-anomaly': {
-    title: 'Statistical Anomaly Detection',
-    desc: 'Comparative outlier analysis using Z-Score (parametric) and IQR (non-parametric) methods'
-  },
   'tab-detection': {
     title: 'DNS Tunneling Detection Results',
     desc: 'Rule-based benchmark, diagnostic confusion matrix, and performance trade-offs'
@@ -125,9 +121,6 @@ function loadAllDataForActiveTab() {
       break;
     case 'tab-hypothesis':
       loadHypothesisData();
-      break;
-    case 'tab-anomaly':
-      loadAnomalyData();
       break;
     case 'tab-detection':
       loadDetectionResults();
@@ -1052,62 +1045,7 @@ async function loadHypothesisData() {
 }
 
 // =====================================================================
-// 7. Statistical Anomaly Detection Controller
-// =====================================================================
-
-async function loadAnomalyData() {
-  const feat = document.getElementById('ad-feature-select')?.value || 'query_length';
-  const zThresh = parseFloat(document.getElementById('ad-z-thresh')?.value || '2.5');
-  const iqrMult = parseFloat(document.getElementById('ad-iqr-mult')?.value || '1.5');
-
-  try {
-    const res = await fetch(`/api/stats/anomaly?feature=${feat}&z_threshold=${zThresh}&iqr_multiplier=${iqrMult}`);
-    const data = await res.json();
-    if (data.status !== 'success') return;
-
-    const ad = data.anomaly_analysis;
-
-    // Badges & Cutoffs
-    setElText('ad-z-cutoffs-badge', ad.z_score_method.cutoffs);
-    setElText('ad-iqr-bounds-badge', `Bounds: ${ad.iqr_method.bounds}`);
-
-    // Numbers
-    setElText('ad-z-total', `${ad.z_score_method.outliers_count} (${ad.z_score_method.outliers_pct}%)`);
-    setElText('ad-z-normal', ad.z_score_method.normal_outliers);
-    setElText('ad-z-susp', ad.z_score_method.suspicious_outliers);
-
-    setElText('ad-iqr-total', `${ad.iqr_method.outliers_count} (${ad.iqr_method.outliers_pct}%)`);
-    setElText('ad-iqr-normal', ad.iqr_method.normal_outliers);
-    setElText('ad-iqr-susp', ad.iqr_method.suspicious_outliers);
-
-    // Flagged Sample Records Table
-    const tbody = document.getElementById('ad-flagged-tbody');
-    if (tbody && ad.flagged_sample) {
-      if (ad.flagged_sample.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:18px; color:var(--text-secondary);">No outliers detected at current threshold parameters.</td></tr>`;
-      } else {
-        tbody.innerHTML = ad.flagged_sample.map(r => `
-          <tr>
-            <td>${r.timestamp}</td>
-            <td><code style="font-size:0.8rem; font-family:var(--font-mono);">${r.query}</code></td>
-            <td class="numeric">${r.feature_value}</td>
-            <td class="numeric">${r.z_score}</td>
-            <td>${r.z_flagged ? '<span class="badge badge-suspicious">Outlier</span>' : '<span class="badge badge-info">Within Bounds</span>'}</td>
-            <td>${r.iqr_flagged ? '<span class="badge badge-suspicious">Outlier</span>' : '<span class="badge badge-info">Within Bounds</span>'}</td>
-            <td><span class="badge ${r.label === 'Suspicious' ? 'badge-suspicious' : 'badge-normal'}">${r.label}</span></td>
-          </tr>
-        `).join('');
-      }
-    }
-
-    setElText('ad-interpretation-text', ad.interpretation);
-  } catch (err) {
-    console.error("Failed to load anomaly detection:", err);
-  }
-}
-
-// =====================================================================
-// 8. Detection Results Controller
+// 7. Detection Results Controller
 // =====================================================================
 
 async function loadDetectionResults() {
@@ -1248,10 +1186,6 @@ function initDatasetControls() {
   // Hypothesis Controls
   document.getElementById('ht-feature-select')?.addEventListener('change', loadHypothesisData);
   document.getElementById('btn-recompute-ci')?.addEventListener('click', loadHypothesisData);
-
-  // Anomaly Controls
-  document.getElementById('btn-run-anomaly')?.addEventListener('click', loadAnomalyData);
-  document.getElementById('ad-feature-select')?.addEventListener('change', loadAnomalyData);
 
   // Detection Benchmark Button
   document.getElementById('btn-re-eval-detectors')?.addEventListener('click', loadDetectionResults);

@@ -14,7 +14,7 @@ An interactive, rigorous **Probability and Statistics Analysis Platform** built 
 ## Table of Contents
 1. [Project Overview & Statistical Objectives](#1-project-overview--statistical-objectives)
 2. [Technology Stack](#2-technology-stack)
-3. [Key Features & Platform Modules (7 Sections)](#3-key-features--platform-modules-7-sections)
+3. [Key Features & Platform Modules (6 Sections)](#3-key-features--platform-modules-6-sections)
 4. [Statistical Concepts Implemented](#4-statistical-concepts-implemented)
 5. [Directory Structure](#5-directory-structure)
 6. [Installation & Setup Instructions](#6-installation--setup-instructions)
@@ -48,12 +48,12 @@ Rather than approaching this solely as a network security problem, this project 
 
 ---
 
-## 3. Key Features & Platform Modules (7 Sections)
+## 3. Key Features & Platform Modules (6 Sections)
 
-The platform features a fixed sidebar navigation linking seven dedicated statistical modules:
+The platform features a fixed sidebar navigation linking six dedicated statistical modules:
 
 ### 1. Overview Dashboard
-- High-level telemetry cards: Total records analyzed, normal query count, suspicious query count, percentage suspicious, mean query length, mean query frequency, mean inter-arrival time, and detected outlier count.
+- High-level telemetry cards: Total records analyzed, normal query count, suspicious query count, percentage suspicious, mean query length, mean query frequency, and mean inter-arrival time.
 - Traffic distribution breakdown charts (doughnut and comparative bar).
 - Key statistical takeaways dynamically computed from active dataset telemetry.
 - Paginated, searchable, and filterable DNS traffic records table with real-time category filtering.
@@ -89,19 +89,11 @@ The platform features a fixed sidebar navigation linking seven dedicated statist
 - **Confidence Intervals:** User-selectable confidence levels (90%, 95%, 99%) for feature means across Normal and Suspicious populations using Student's $t$-distribution.
 - **Error Analysis:** Clear explanations of Type I Error (False Positive, $\alpha$) and Type II Error (False Negative, $\beta$).
 
-### 6. Statistical Anomaly Detection
-- **Parametric $Z$-Score Method:** Identifies observations whose standardized distance exceeds a user-tunable threshold $Z_{\text{thresh}}$:
-  $$Z = \frac{x - \bar{x}}{s}$$
-- **Non-Parametric Interquartile Range (IQR) Method:** Flags observations falling outside the Tukey fences:
-  $$[\,Q_1 - k \cdot IQR, \;\; Q_3 + k \cdot IQR\,]$$
-- Interactive controls to adjust sensitivity ($Z \in [1.5, 4.0]$, $k \in [1.0, 3.0]$).
-- Stratified breakdown showing how many normal vs. suspicious records are flagged by pure statistical anomaly criteria.
-
-### 7. Detection Results & Benchmark
+### 6. Detection Results & Benchmark
 - Evaluation of rule-based statistical threshold detectors: Query Length-Only, Inter-Arrival Time-Only, Entropy-Only, and Combined Multi-Criteria.
 - Full performance classification metrics: Total Records, True Positives ($TP$), False Positives ($FP$), True Negatives ($TN$), False Negatives ($FN$), Detection Rate / Recall, False Positive Rate ($FPR$), Precision, and $F_1$-Score.
 - 2x2 Confusion Matrix visualization.
-- Clarification separating statistical anomalies, rule-based detection, and ground truth labels.
+- Clarification separating statistical rules, detector classifications, and ground truth labels.
 
 ---
 
@@ -133,7 +125,7 @@ detection-of-DNS-tunneling-/
 │   ├── sample_high_entropy_tunneling.csv  # Tunneling attack surge scenario (700 records)
 │   └── sample_normal_workday.csv          # Routine corporate browsing scenario (920 records)
 ├── templates/
-│   └── index.html             # Single-page 7-module dashboard template
+│   └── index.html             # Single-page 6-module dashboard template
 ├── static/
 │   ├── css/
 │   │   └── style.css          # Professional Warm Ivory & Deep Plum stylesheet

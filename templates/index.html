@@ -17,9 +17,7 @@
     <!-- ================================================================= -->
     <aside class="app-sidebar">
       <div class="sidebar-brand">
-        <span class="brand-badge">Probability &amp; Statistics</span>
-        <h2 class="brand-title">DNS StatLab</h2>
-        <p class="brand-sub">Traffic Statistical Analytics Platform</p>
+        <h2 class="brand-title">Traffic Statistical Analytics Platform</h2>
       </div>
 
       <nav class="sidebar-nav">
@@ -56,15 +54,9 @@
             </button>
           </li>
           <li>
-            <button class="sidebar-btn" data-tab="tab-anomaly">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
-              <span>6. Anomaly Detection</span>
-            </button>
-          </li>
-          <li>
             <button class="sidebar-btn" data-tab="tab-detection">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg>
-              <span>7. Detection Results</span>
+              <span>6. Detection Results</span>
             </button>
           </li>
         </ul>
@@ -807,128 +799,7 @@
         </div>
 
         <!-- ============================================================= -->
-        <!-- SECTION 6: ANOMALY DETECTION -->
-        <!-- ============================================================= -->
-        <div id="tab-anomaly" class="tab-content">
-          <div class="card">
-            <div class="card-header">
-              <div>
-                <h2 class="card-title">Statistical Anomaly Detection (Z-Score &amp; IQR)</h2>
-                <div class="card-subtitle">Identifying extreme observations and outliers across traffic features</div>
-              </div>
-              <div class="controls-bar">
-                <div class="form-group">
-                  <label for="ad-feature-select">Feature:</label>
-                  <select id="ad-feature-select" class="form-select">
-                    <option value="query_length" selected>Query Length</option>
-                    <option value="inter_arrival_time">Inter-Arrival Time</option>
-                    <option value="entropy">Shannon Entropy</option>
-                    <option value="query_frequency">Query Frequency</option>
-                  </select>
-                </div>
-                <div class="form-group">
-                  <label for="ad-z-thresh">Z-Score Cutoff (|Z| &gt;):</label>
-                  <select id="ad-z-thresh" class="form-select" style="width:75px;">
-                    <option value="2.0">2.0</option>
-                    <option value="2.5" selected>2.5</option>
-                    <option value="3.0">3.0</option>
-                    <option value="3.5">3.5</option>
-                  </select>
-                </div>
-                <div class="form-group">
-                  <label for="ad-iqr-mult">IQR Multiplier:</label>
-                  <select id="ad-iqr-mult" class="form-select" style="width:75px;">
-                    <option value="1.5" selected>1.5</option>
-                    <option value="2.0">2.0</option>
-                    <option value="3.0">3.0</option>
-                  </select>
-                </div>
-                <button id="btn-run-anomaly" class="btn btn-primary btn-sm">Detect</button>
-              </div>
-            </div>
-
-            <!-- Comparison Cards -->
-            <div class="grid-2" style="margin-bottom:18px;">
-              <div class="subtle-tile">
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                  <span style="font-weight:700; color:var(--dark-accent);">Z-Score Method (Parametric)</span>
-                  <span class="badge badge-plum" id="ad-z-cutoffs-badge">Cutoffs: -</span>
-                </div>
-                <div class="grid-3" style="margin-top:10px;">
-                  <div>
-                    <div class="metric-label">Total Outliers</div>
-                    <div class="metric-value" id="ad-z-total" style="font-size:1.35rem;">-</div>
-                  </div>
-                  <div>
-                    <div class="metric-label">In Normal Traffic</div>
-                    <div class="metric-value" id="ad-z-normal" style="font-size:1.35rem; color:var(--normal-color);">-</div>
-                  </div>
-                  <div>
-                    <div class="metric-label">In Suspicious Traffic</div>
-                    <div class="metric-value" id="ad-z-susp" style="font-size:1.35rem; color:var(--suspicious-color);">-</div>
-                  </div>
-                </div>
-                <p style="font-size:0.78rem; color:var(--text-secondary); margin-top:8px;">
-                  Assumes approximate Gaussian normality. Flags queries whose standard score |Z| exceeds threshold.
-                </p>
-              </div>
-
-              <div class="subtle-tile">
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                  <span style="font-weight:700; color:var(--dark-accent);">IQR Method (Non-Parametric)</span>
-                  <span class="badge badge-plum" id="ad-iqr-bounds-badge">Bounds: -</span>
-                </div>
-                <div class="grid-3" style="margin-top:10px;">
-                  <div>
-                    <div class="metric-label">Total Outliers</div>
-                    <div class="metric-value" id="ad-iqr-total" style="font-size:1.35rem;">-</div>
-                  </div>
-                  <div>
-                    <div class="metric-label">In Normal Traffic</div>
-                    <div class="metric-value" id="ad-iqr-normal" style="font-size:1.35rem; color:var(--normal-color);">-</div>
-                  </div>
-                  <div>
-                    <div class="metric-label">In Suspicious Traffic</div>
-                    <div class="metric-value" id="ad-iqr-susp" style="font-size:1.35rem; color:var(--suspicious-color);">-</div>
-                  </div>
-                </div>
-                <p style="font-size:0.78rem; color:var(--text-secondary); margin-top:8px;">
-                  Distribution-free method based on quartiles. Resilient against extreme skewness and heavy tails.
-                </p>
-              </div>
-            </div>
-
-            <!-- Top Flagged Outliers Table -->
-            <div style="font-weight:600; font-size:0.86rem; color:var(--dark-accent); margin-bottom:8px;">
-              Sample of Top Flagged Records
-            </div>
-            <div class="table-responsive" style="margin-bottom:14px;">
-              <table class="stats-table">
-                <thead>
-                  <tr>
-                    <th>Timestamp</th>
-                    <th>Domain Query Name</th>
-                    <th class="numeric">Value</th>
-                    <th class="numeric">Z-Score</th>
-                    <th>Z-Score Outlier</th>
-                    <th>IQR Outlier</th>
-                    <th>True Ground Label</th>
-                  </tr>
-                </thead>
-                <tbody id="ad-flagged-tbody">
-                  <tr><td colspan="7" style="text-align:center; padding:16px;">Loading flagged records...</td></tr>
-                </tbody>
-              </table>
-            </div>
-
-            <div class="note-box" id="ad-interpretation-text">
-              Loading anomaly analysis...
-            </div>
-          </div>
-        </div>
-
-        <!-- ============================================================= -->
-        <!-- SECTION 7: DETECTION RESULTS -->
+        <!-- SECTION 6: DETECTION RESULTS -->
         <!-- ============================================================= -->
         <div id="tab-detection" class="tab-content">
           <div class="card">

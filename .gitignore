@@ -25,3 +25,6 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Dynamic user uploads
+data/custom_*.csv

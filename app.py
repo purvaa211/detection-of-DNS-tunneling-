@@ -1,6 +1,6 @@
 """
 Flask Application for DNS Tunneling Detection using Entropy and Timing Statistics.
-Course Project: Probability and Statistics.
+Upgraded Probability & Statistics Analytics Platform.
 """
 
 import os
@@ -30,7 +30,6 @@ def load_dataset(filename: str) -> pd.DataFrame:
     """Loads and processes a dataset by filename from the data directory."""
     filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
     if not os.path.exists(filepath):
-        # Fallback to default
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], 'sample_dns_traffic.csv')
         filename = 'sample_dns_traffic.csv'
 
@@ -60,7 +59,7 @@ def index():
 
 
 # ---------------------------------------------------------------------
-# Dataset Management Endpoints
+# 1. Dataset Management Endpoints
 # ---------------------------------------------------------------------
 
 @app.route('/api/dataset/info', methods=['GET'])
@@ -71,9 +70,14 @@ def get_dataset_info():
     normal_cnt = int(np.sum(df['label'] == 'Normal'))
     suspicious_cnt = int(np.sum(df['label'] == 'Suspicious'))
 
-    mean_entropy = float(df['entropy'].mean())
-    mean_length = float(df['query_length'].mean())
-    mean_iat = float(df['inter_arrival_time'].mean())
+    mean_entropy = float(df['entropy'].mean()) if 'entropy' in df.columns else 0.0
+    mean_length = float(df['query_length'].mean()) if 'query_length' in df.columns else 0.0
+    mean_iat = float(df['inter_arrival_time'].mean()) if 'inter_arrival_time' in df.columns else 0.0
+    mean_freq = float(df['query_frequency'].mean()) if 'query_frequency' in df.columns else 1.0
+
+    # Quick outlier detection across query_length for summary count
+    outlier_res = stats_engine.run_anomaly_detection(df, feature='query_length', z_threshold=2.5)
+    total_outliers = outlier_res.get('z_score_method', {}).get('outliers_count', 0)
 
     available_files = [
         f for f in os.listdir(app.config['UPLOAD_FOLDER'])
@@ -81,7 +85,24 @@ def get_dataset_info():
     ]
 
     is_simulated = ACTIVE_DATASET_NAME.startswith('sample_')
-    dataset_desc = "Preloaded simulated educational dataset" if is_simulated else "User uploaded dataset"
+    dataset_desc = "Preloaded simulated educational dataset" if is_simulated else "User uploaded custom dataset"
+
+    # Dynamic observations based on actual data
+    obs = []
+    normal_len = float(df[df['label'] == 'Normal']['query_length'].mean()) if normal_cnt > 0 else 0.0
+    susp_len = float(df[df['label'] == 'Suspicious']['query_length'].mean()) if suspicious_cnt > 0 else 0.0
+    if normal_len > 0 and susp_len > 0:
+        len_diff_pct = round(((susp_len - normal_len) / normal_len) * 100, 1)
+        obs.append(f"Suspicious queries are {len_diff_pct}% longer on average ({susp_len:.1f} vs {normal_len:.1f} characters).")
+
+    normal_iat = float(df[df['label'] == 'Normal']['inter_arrival_time'].mean()) if normal_cnt > 0 else 0.0
+    susp_iat = float(df[df['label'] == 'Suspicious']['inter_arrival_time'].mean()) if suspicious_cnt > 0 else 0.0
+    if susp_iat < normal_iat:
+        obs.append(f"Suspicious traffic exhibits higher arrival frequency with lower mean interval ({susp_iat:.3f}s vs {normal_iat:.3f}s).")
+    else:
+        obs.append(f"Normal traffic inter-arrival average is {normal_iat:.3f}s; suspicious queries arrive with mean {susp_iat:.3f}s.")
+
+    obs.append(f"{total_outliers} statistical outliers detected beyond 2.5 standard deviations in query length.")
 
     return jsonify({
         "status": "success",
@@ -96,6 +117,9 @@ def get_dataset_info():
         "mean_entropy": round(mean_entropy, 3),
         "mean_length": round(mean_length, 1),
         "mean_iat_seconds": round(mean_iat, 3),
+        "mean_frequency": round(mean_freq, 2),
+        "total_outliers_detected": total_outliers,
+        "observations": obs,
         "available_datasets": available_files
     })
 
@@ -121,111 +145,110 @@ def switch_dataset():
         ACTIVE_DATASET_NAME = filename
         return jsonify({
             "status": "success",
-            "message": f"Switched active dataset to {filename}",
+            "message": f"Switched to dataset {filename}",
             "dataset_name": filename,
-            "rows": len(ACTIVE_DF)
+            "total_records": len(ACTIVE_DF)
         })
     except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
+        return jsonify({"status": "error", "message": f"Failed to load dataset: {str(e)}"}), 500
 
 
 @app.route('/api/dataset/upload', methods=['POST'])
 def upload_dataset():
-    """Handles custom CSV dataset upload with validation and feature extraction."""
+    """Handles CSV dataset file uploads with structural validation."""
     global ACTIVE_DF, ACTIVE_DATASET_NAME
+
     if 'file' not in request.files:
-        return jsonify({"status": "error", "message": "No file uploaded. Please select a CSV file."}), 400
+        return jsonify({"status": "error", "message": "No file part in upload request"}), 400
 
     file = request.files['file']
     if file.filename == '':
-        return jsonify({"status": "error", "message": "No file selected."}), 400
+        return jsonify({"status": "error", "message": "No file selected for upload"}), 400
 
     if not file.filename.lower().endswith('.csv'):
-        return jsonify({"status": "error", "message": "Invalid file format. Only .csv files are supported."}), 400
+        return jsonify({"status": "error", "message": "Only CSV files (.csv) are accepted"}), 400
 
-    filename = secure_filename(file.filename)
-    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    safe_name = secure_filename(file.filename)
+    if not safe_name.startswith('custom_'):
+        safe_name = f"custom_{safe_name}"
+
+    save_path = os.path.join(app.config['UPLOAD_FOLDER'], safe_name)
 
     try:
-        file.save(filepath)
-        df_uploaded = load_dataset(filename)
-        ACTIVE_DF = df_uploaded
-        ACTIVE_DATASET_NAME = filename
+        # Read raw uploaded content
+        content_stream = io.StringIO(file.stream.read().decode('utf-8', errors='replace'))
+        raw_df = pd.read_csv(content_stream)
+
+        # Validate and enrich via dns_utils
+        enriched_df = dns_utils.process_dns_dataframe(raw_df)
+
+        # Save validated dataset to disk
+        enriched_df.to_csv(save_path, index=False)
+
+        # Set as active
+        ACTIVE_DF = enriched_df
+        ACTIVE_DATASET_NAME = safe_name
 
         return jsonify({
             "status": "success",
-            "message": f"Dataset '{filename}' successfully uploaded and analyzed ({len(ACTIVE_DF)} records).",
-            "dataset_name": filename,
-            "rows": len(ACTIVE_DF),
-            "columns": list(ACTIVE_DF.columns)
+            "message": f"Successfully validated and loaded {safe_name}",
+            "dataset_name": safe_name,
+            "total_records": len(enriched_df),
+            "columns_detected": list(enriched_df.columns),
+            "normal_count": int(np.sum(enriched_df['label'] == 'Normal')),
+            "suspicious_count": int(np.sum(enriched_df['label'] == 'Suspicious'))
         })
     except ValueError as ve:
-        if os.path.exists(filepath):
-            try:
-                os.remove(filepath)
-            except Exception:
-                pass
-        return jsonify({"status": "error", "message": str(ve)}), 400
+        return jsonify({"status": "error", "message": f"Validation Error: {str(ve)}"}), 400
     except Exception as e:
-        if os.path.exists(filepath):
-            try:
-                os.remove(filepath)
-            except Exception:
-                pass
-        return jsonify({"status": "error", "message": f"Failed to parse CSV file: {str(e)}"}), 400
+        return jsonify({"status": "error", "message": f"Failed to process CSV file: {str(e)}"}), 500
 
 
 @app.route('/api/dataset/records', methods=['GET'])
 def get_dataset_records():
-    """
-    Returns paginated, filtered, and searchable records for the data preview table.
-    """
+    """Returns paginated, searchable DNS traffic records."""
     df = get_active_df()
 
-    # Query params
     page = int(request.args.get('page', 1))
     page_size = int(request.args.get('page_size', 12))
-    search = request.args.get('search', '').strip().lower()
+    search_query = request.args.get('search', '').strip().lower()
     label_filter = request.args.get('label', 'all').strip()
     sort_by = request.args.get('sort_by', 'timestamp')
     sort_order = request.args.get('sort_order', 'asc')
 
-    filtered = df.copy()
+    filtered_df = df.copy()
+
+    # Search filter
+    if search_query:
+        filtered_df = filtered_df[filtered_df['query'].astype(str).str.lower().str.contains(search_query)]
 
     # Label filter
     if label_filter.lower() in ['normal', 'suspicious']:
-        filtered = filtered[filtered['label'].str.lower() == label_filter.lower()]
-
-    # Search filter
-    if search:
-        filtered = filtered[
-            filtered['query'].str.lower().str.contains(search, na=False) |
-            filtered['record_type'].str.lower().str.contains(search, na=False)
-        ]
+        filtered_df = filtered_df[filtered_df['label'].str.lower() == label_filter.lower()]
 
     # Sorting
-    if sort_by in filtered.columns:
+    if sort_by in filtered_df.columns:
         ascending = (sort_order.lower() == 'asc')
-        filtered = filtered.sort_values(by=sort_by, ascending=ascending)
+        filtered_df = filtered_df.sort_values(by=sort_by, ascending=ascending)
 
-    total_records = len(filtered)
-    total_pages = max(1, (total_records + page_size - 1) // page_size)
+    total_records = len(filtered_df)
+    total_pages = max(1, int(np.ceil(total_records / page_size)))
     page = max(1, min(page, total_pages))
 
     start_idx = (page - 1) * page_size
     end_idx = start_idx + page_size
-
-    page_slice = filtered.iloc[start_idx:end_idx]
+    page_slice = filtered_df.iloc[start_idx:end_idx]
 
     records = []
     for _, row in page_slice.iterrows():
         records.append({
-            "timestamp": row['timestamp_str'] if 'timestamp_str' in row else str(row['timestamp']),
+            "timestamp": str(row.get('timestamp', row.get('timestamp_str', ''))),
             "query": str(row['query']),
-            "record_type": str(row['record_type']),
+            "record_type": str(row.get('record_type', 'A')),
             "query_length": int(row['query_length']),
-            "entropy": round(float(row['entropy']), 4),
-            "inter_arrival_time": round(float(row['inter_arrival_time']), 4),
+            "entropy": float(round(row['entropy'], 4)) if 'entropy' in row else 0.0,
+            "inter_arrival_time": float(round(row['inter_arrival_time'], 4)),
+            "query_frequency": float(round(row.get('query_frequency', 1.0), 2)),
             "label": str(row['label'])
         })
 
@@ -233,15 +256,15 @@ def get_dataset_records():
         "status": "success",
         "page": page,
         "page_size": page_size,
-        "total_records": total_records,
         "total_pages": total_pages,
+        "total_records": total_records,
         "records": records
     })
 
 
 @app.route('/api/dataset/download', methods=['GET'])
 def download_dataset():
-    """Allows downloading the active processed dataset with all calculated statistics."""
+    """Exports the processed active dataset as a CSV file."""
     df = get_active_df()
     csv_buffer = io.StringIO()
     df.to_csv(csv_buffer, index=False)
@@ -257,45 +280,48 @@ def download_dataset():
 
 
 # ---------------------------------------------------------------------
-# Section 2: Data Analysis (Descriptive Statistics)
+# 2. Descriptive Statistics Endpoints
 # ---------------------------------------------------------------------
 
 @app.route('/api/stats/descriptive', methods=['GET'])
 def get_descriptive_stats():
     """
-    Computes complete descriptive statistics (mean, median, mode, variance,
-    std dev, CV, IQR, quartiles), histograms, and box plots.
+    Computes comprehensive descriptive statistics, histogram bins,
+    and boxplot metrics for all numerical features.
     """
     df = get_active_df()
+    features = ['query_length', 'inter_arrival_time', 'entropy', 'query_frequency', 'subdomain_length']
 
-    features = ['entropy', 'query_length', 'inter_arrival_time']
+    normal_df = df[df['label'] == 'Normal']
+    suspicious_df = df[df['label'] == 'Suspicious']
+
     results = {}
-
     for feat in features:
-        overall_stats = stats_engine.compute_descriptive_stats(df[feat])
-        normal_stats = stats_engine.compute_descriptive_stats(df[df['label'] == 'Normal'][feat])
-        suspicious_stats = stats_engine.compute_descriptive_stats(df[df['label'] == 'Suspicious'][feat])
+        if feat not in df.columns:
+            continue
 
-        # Histograms
-        overall_hist = stats_engine.compute_histogram_bins(df[feat], bins=14)
-        normal_hist = stats_engine.compute_histogram_bins(df[df['label'] == 'Normal'][feat], bins=14)
-        suspicious_hist = stats_engine.compute_histogram_bins(df[df['label'] == 'Suspicious'][feat], bins=14)
+        desc_normal = stats_engine.compute_descriptive_stats(normal_df[feat])
+        desc_suspicious = stats_engine.compute_descriptive_stats(suspicious_df[feat])
+        desc_overall = stats_engine.compute_descriptive_stats(df[feat])
 
-        # Boxplot data
-        boxplot = stats_engine.compute_boxplot_data(df, feat)
+        hist_normal = stats_engine.compute_histogram_bins(normal_df[feat], bins=14)
+        hist_suspicious = stats_engine.compute_histogram_bins(suspicious_df[feat], bins=14)
+        hist_overall = stats_engine.compute_histogram_bins(df[feat], bins=14)
+
+        boxplot_data = stats_engine.compute_boxplot_data(df, feat)
 
         results[feat] = {
             "descriptive": {
-                "overall": overall_stats,
-                "normal": normal_stats,
-                "suspicious": suspicious_stats
+                "normal": desc_normal,
+                "suspicious": desc_suspicious,
+                "overall": desc_overall
             },
             "histograms": {
-                "overall": overall_hist,
-                "normal": normal_hist,
-                "suspicious": suspicious_hist
+                "normal": hist_normal,
+                "suspicious": hist_suspicious,
+                "overall": hist_overall
             },
-            "boxplot": boxplot
+            "boxplot": boxplot_data
         }
 
     return jsonify({
@@ -305,18 +331,16 @@ def get_descriptive_stats():
 
 
 # ---------------------------------------------------------------------
-# Section 3: Probability & Distributions
+# 3. Probability & Distributions Endpoints
 # ---------------------------------------------------------------------
 
 @app.route('/api/stats/probability', methods=['GET', 'POST'])
 def get_probability_analysis():
     """
-    Computes basic probability rates, Bayes' theorem analysis,
-    Binomial batch trials, Normal distribution fit & 95% Confidence Interval.
+    Computes basic probability rates, Bayes' theorem, Binomial batch trials,
+    Normal distribution fit, Poisson arrival process, and Exponential IAT model.
     """
     df = get_active_df()
-
-    # Get parameters from query or body
     params = request.get_json() if request.is_json else request.args
 
     total = len(df)
@@ -332,14 +356,18 @@ def get_probability_analysis():
     n_batch = int(params.get('n_batch', 30))
     p_batch = float(params.get('p_batch', p_susp if p_susp > 0 else 0.15))
 
+    time_bucket = float(params.get('time_bucket_seconds', 2.0))
+    normal_feat = params.get('normal_feature', 'query_length')
+    if normal_feat not in df.columns:
+        normal_feat = 'query_length'
+
     bayes_res = stats_engine.bayes_theorem_analysis(prior, sens, fpr)
     binomial_res = stats_engine.binomial_model(n_batch, p_batch)
-    poisson_res = stats_engine.poisson_arrival_model(df, time_bucket_seconds=2.0)
+    poisson_res = stats_engine.poisson_arrival_model(df, time_bucket_seconds=time_bucket)
     exponential_res = stats_engine.exponential_iat_model(df)
 
-    # 95% Confidence Interval for mean query length & Normal distribution fit
-    ci_res = stats_engine.compute_confidence_intervals(df['query_length'])
-    zscore_res = stats_engine.z_score_and_normality_analysis(df['query_length'], 'query_length')
+    ci_res = stats_engine.compute_confidence_intervals(df[normal_feat])
+    zscore_res = stats_engine.z_score_and_normality_analysis(df[normal_feat], normal_feat)
 
     return jsonify({
         "status": "success",
@@ -355,30 +383,27 @@ def get_probability_analysis():
         "poisson_process": poisson_res,
         "exponential_iat": exponential_res,
         "normal_fit": {
+            "feature": normal_feat,
             "ci_95": ci_res.get('confidence_intervals', {}).get('95%', {}),
             "empirical_rule": zscore_res.get('empirical_rule', {}),
             "mean": zscore_res.get('mean', 0.0),
             "std_dev": zscore_res.get('std_dev', 0.0),
+            "normal_curve": zscore_res.get('normal_curve', {}),
+            "normality_test": zscore_res.get('normality_test', {}),
             "interpretation": zscore_res.get('interpretation', '')
         }
     })
 
 
-# ---------------------------------------------------------------------
-# Section 3 & 4 (Supportive): Sampling & Central Limit Theorem
-# ---------------------------------------------------------------------
-
 @app.route('/api/stats/sampling', methods=['GET', 'POST'])
 def get_sampling_and_clt():
-    """
-    Central Limit Theorem simulation and Confidence Intervals.
-    """
+    """Central Limit Theorem simulation and Confidence Intervals."""
     df = get_active_df()
     params = request.get_json() if request.is_json else request.args
 
-    feature = params.get('feature', 'entropy')
-    if feature not in ['entropy', 'query_length', 'inter_arrival_time']:
-        feature = 'entropy'
+    feature = params.get('feature', 'query_length')
+    if feature not in df.columns:
+        feature = 'query_length'
 
     sample_size_n = int(params.get('sample_size_n', 30))
     num_samples_N = int(params.get('num_samples_N', 500))
@@ -399,76 +424,92 @@ def get_sampling_and_clt():
 
 
 # ---------------------------------------------------------------------
-# Section 4: Hypothesis Testing
+# 4. Correlation & Regression Endpoints
 # ---------------------------------------------------------------------
 
-@app.route('/api/stats/hypothesis', methods=['GET'])
-def get_hypothesis_testing():
+@app.route('/api/stats/correlation', methods=['GET', 'POST'])
+def get_correlation_matrix():
     """
-    Performs Welch's Two-Sample t-tests comparing Normal vs Suspicious traffic,
-    plus Chi-Square Test and ANOVA for full coverage.
+    Computes Pearson and Spearman correlation matrices across numerical features,
+    and returns pairwise scatter coordinates for user-selected variable pairs.
     """
     df = get_active_df()
+    params = request.get_json() if request.is_json else request.args
 
-    normal_df = df[df['label'] == 'Normal']
-    suspicious_df = df[df['label'] == 'Suspicious']
+    x_col = params.get('x_col', 'query_length')
+    y_col = params.get('y_col', 'entropy')
 
-    # Two-sample t-tests
-    t_test_entropy = stats_engine.two_sample_welch_t_test(
-        normal_df['entropy'], suspicious_df['entropy'],
-        group1_name="Normal", group2_name="Suspicious", feature_name="Shannon Entropy"
-    )
-    t_test_length = stats_engine.two_sample_welch_t_test(
-        normal_df['query_length'], suspicious_df['query_length'],
-        group1_name="Normal", group2_name="Suspicious", feature_name="Query Length"
-    )
-    t_test_iat = stats_engine.two_sample_welch_t_test(
-        normal_df['inter_arrival_time'], suspicious_df['inter_arrival_time'],
-        group1_name="Normal", group2_name="Suspicious", feature_name="Inter-Arrival Time"
-    )
+    if x_col not in df.columns:
+        x_col = 'query_length'
+    if y_col not in df.columns:
+        y_col = 'entropy' if 'entropy' in df.columns else 'inter_arrival_time'
 
-    # Chi-Square Test of Independence (Length Category vs Label)
-    chi2_res = stats_engine.chi_square_test_independence(df, cat_col='query_length_cat')
+    corr_matrix = stats_engine.compute_correlation_matrix(df)
 
-    # One-Way ANOVA (Record Type vs Entropy)
-    anova_entropy = stats_engine.one_way_anova(df, group_col='record_type', value_col='entropy')
-    anova_length = stats_engine.one_way_anova(df, group_col='record_type', value_col='query_length')
+    # Compute two-variable scatter data
+    scatter_df = df[[x_col, y_col, 'label']].dropna()
+    n = len(scatter_df)
+    sample_indices = np.random.choice(n, size=min(n, 250), replace=False) if n > 250 else range(n)
+
+    scatter_normal = []
+    scatter_suspicious = []
+    for i in sample_indices:
+        row = scatter_df.iloc[i]
+        pt = {"x": round(float(row[x_col]), 3), "y": round(float(row[y_col]), 3)}
+        if row['label'] == 'Suspicious':
+            scatter_suspicious.append(pt)
+        else:
+            scatter_normal.append(pt)
+
+    r_val, p_val = stats.pearsonr(scatter_df[x_col], scatter_df[y_col])
+    s_val, _ = stats.spearmanr(scatter_df[x_col], scatter_df[y_col])
 
     return jsonify({
         "status": "success",
-        "two_sample_t_tests": {
-            "entropy": t_test_entropy,
-            "query_length": t_test_length,
-            "inter_arrival_time": t_test_iat
-        },
-        "chi_square_test": chi2_res,
-        "one_way_anova": {
-            "entropy_by_record_type": anova_entropy,
-            "length_by_record_type": anova_length
+        "matrix": corr_matrix,
+        "pair_selected": {
+            "x_col": x_col,
+            "y_col": y_col,
+            "pearson_r": round(float(r_val), 4),
+            "pearson_p": float(p_val),
+            "spearman_rho": round(float(s_val), 4),
+            "scatter_normal": scatter_normal,
+            "scatter_suspicious": scatter_suspicious
         }
     })
 
 
-# ---------------------------------------------------------------------
-# Section 5: Correlation & Simple Linear Regression
-# ---------------------------------------------------------------------
-
-@app.route('/api/stats/regression', methods=['GET'])
+@app.route('/api/stats/regression', methods=['GET', 'POST'])
 def get_correlation_regression():
     """
-    Computes Pearson r, Spearman rho, OLS Linear Regression
-    between Query Length and Shannon Entropy, plus pairwise correlations.
+    Computes Simple Linear Regression (OLS) between selectable X and Y variables,
+    calculating slope, intercept, R^2, MSE, residual plot, and scatter points.
     """
     df = get_active_df()
-    reg_res = stats_engine.correlation_and_regression(df, x_col='query_length', y_col='entropy')
+    params = request.get_json() if request.is_json else request.args
 
-    # Calculate pairwise correlation between Query Length, Entropy, and IAT
+    x_col = params.get('x_col', 'query_length')
+    y_col = params.get('y_col', 'entropy')
+
+    if x_col not in df.columns:
+        x_col = 'query_length'
+    if y_col not in df.columns:
+        y_col = 'entropy' if 'entropy' in df.columns else 'inter_arrival_time'
+
+    filter_outliers = params.get('filter_outliers', True)
+    if isinstance(filter_outliers, str):
+        filter_outliers = filter_outliers.lower() in ['true', '1']
+
+    reg_res = stats_engine.correlation_and_regression(
+        df, x_col=x_col, y_col=y_col, filter_outliers=filter_outliers
+    )
+
+    # Retain pairwise correlations for backwards compatibility
     try:
         clean_subset = df[['query_length', 'entropy', 'inter_arrival_time']].dropna()
         r_len_ent, _ = stats.pearsonr(clean_subset['query_length'], clean_subset['entropy'])
         r_len_iat, _ = stats.pearsonr(clean_subset['query_length'], clean_subset['inter_arrival_time'])
         r_ent_iat, _ = stats.pearsonr(clean_subset['entropy'], clean_subset['inter_arrival_time'])
-
         reg_res["pairwise_correlations"] = {
             "length_entropy": round(float(r_len_ent), 4),
             "length_iat": round(float(r_len_iat), 4),
@@ -487,15 +528,127 @@ def get_correlation_regression():
     })
 
 
+@app.route('/api/stats/regression/multiple', methods=['GET', 'POST'])
+def get_multiple_regression():
+    """
+    Computes Multiple Linear Regression predicting a dependent variable
+    using multiple user-selected independent predictors.
+    """
+    df = get_active_df()
+    params = request.get_json() if request.is_json else request.args
+
+    y_col = params.get('y_col', 'entropy')
+    x_cols = params.get('x_cols', ['query_length', 'inter_arrival_time'])
+
+    if isinstance(x_cols, str):
+        x_cols = [c.strip() for c in x_cols.split(',') if c.strip()]
+
+    mlr_res = stats_engine.multiple_linear_regression(df, y_col=y_col, x_cols=x_cols)
+
+    return jsonify({
+        "status": "success",
+        "multiple_regression": mlr_res
+    })
+
+
 # ---------------------------------------------------------------------
-# Section 5: Supporting Detection Engine Evaluation
+# 5. Hypothesis Testing Endpoints
+# ---------------------------------------------------------------------
+
+@app.route('/api/stats/hypothesis', methods=['GET', 'POST'])
+def get_hypothesis_testing():
+    """
+    Performs Welch's Two-Sample t-tests comparing Normal vs Suspicious traffic,
+    Confidence Interval analysis with configurable confidence levels (90%, 95%, 99%),
+    plus Chi-Square Test and ANOVA.
+    """
+    df = get_active_df()
+    params = request.get_json() if request.is_json else request.args
+
+    selected_feat = params.get('feature', 'query_length')
+    conf_level = float(params.get('confidence_level', 0.95))
+    ci_group = params.get('ci_group', 'Overall')
+
+    normal_df = df[df['label'] == 'Normal']
+    suspicious_df = df[df['label'] == 'Suspicious']
+
+    # Two-sample t-tests
+    t_tests = {}
+    for feat in ['query_length', 'inter_arrival_time', 'entropy', 'query_frequency']:
+        if feat in df.columns:
+            feat_label = feat.replace('_', ' ').title()
+            t_tests[feat] = stats_engine.two_sample_welch_t_test(
+                normal_df[feat], suspicious_df[feat],
+                group1_name="Normal", group2_name="Suspicious", feature_name=feat_label
+            )
+
+    # Confidence interval for selected feature & group
+    ci_series = df[selected_feat] if ci_group == 'Overall' else df[df['label'] == ci_group][selected_feat]
+    ci_details = stats_engine.compute_confidence_intervals(ci_series, confidence_level=conf_level)
+
+    # Chi-Square Test of Independence
+    chi2_res = stats_engine.chi_square_test_independence(df, cat_col='query_length_cat')
+
+    # One-Way ANOVA
+    anova_length = stats_engine.one_way_anova(df, group_col='record_type', value_col='query_length')
+    anova_entropy = stats_engine.one_way_anova(df, group_col='record_type', value_col='entropy') if 'entropy' in df.columns else {}
+
+    return jsonify({
+        "status": "success",
+        "two_sample_t_tests": t_tests,
+        "selected_feature_test": t_tests.get(selected_feat, {}),
+        "confidence_interval_analysis": {
+            "feature": selected_feat,
+            "group": ci_group,
+            "details": ci_details
+        },
+        "chi_square_test": chi2_res,
+        "one_way_anova": {
+            "length_by_record_type": anova_length,
+            "entropy_by_record_type": anova_entropy
+        }
+    })
+
+
+# ---------------------------------------------------------------------
+# 6. Statistical Anomaly Detection Endpoints
+# ---------------------------------------------------------------------
+
+@app.route('/api/stats/anomaly', methods=['GET', 'POST'])
+def get_anomaly_detection():
+    """
+    Implements statistical outlier detection comparing Z-Score and IQR methods.
+    Allows user-adjustable thresholds and returns summary statistics and flagged records.
+    """
+    df = get_active_df()
+    params = request.get_json() if request.is_json else request.args
+
+    feature = params.get('feature', 'query_length')
+    if feature not in df.columns:
+        feature = 'query_length'
+
+    z_thresh = float(params.get('z_threshold', 2.5))
+    iqr_mult = float(params.get('iqr_multiplier', 1.5))
+
+    anomaly_res = stats_engine.run_anomaly_detection(
+        df, feature=feature, z_threshold=z_thresh, iqr_multiplier=iqr_mult
+    )
+
+    return jsonify({
+        "status": "success",
+        "anomaly_analysis": anomaly_res
+    })
+
+
+# ---------------------------------------------------------------------
+# 7. Detection Results Endpoints
 # ---------------------------------------------------------------------
 
 @app.route('/api/detector/evaluate', methods=['GET', 'POST'])
 def evaluate_detector():
     """
-    Evaluates Entropy-Only, Timing-Only, and Combined Statistical Detectors
-    using configurable thresholds.
+    Evaluates Length-Only, Entropy-Only, Timing-Only, and Combined Statistical Detectors
+    using configurable thresholds, computing complete confusion matrices and diagnostic metrics.
     """
     df = get_active_df()
     params = request.get_json() if request.is_json else request.args

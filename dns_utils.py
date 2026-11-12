@@ -1,7 +1,7 @@
 """
 DNS Utilities Module for DNS Tunneling Detection Project.
 
-Calculates Shannon Entropy, Inter-Arrival Times (IAT), and structural DNS features
+Calculates Shannon Entropy, Inter-Arrival Times (IAT), Query Frequency, and structural DNS features
 for Probability and Statistics analysis.
 """
 
@@ -55,12 +55,13 @@ def extract_subdomain(domain: str) -> str:
 def process_dns_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     """
     Enriches a raw or uploaded DNS traffic DataFrame with statistical features:
-    - query_length: Total length of domain name
-    - subdomain_length: Length of subdomain payload
-    - entropy: Shannon entropy of the full query
-    - subdomain_entropy: Shannon entropy of the subdomain portion
+    - query_length: Total length of domain name (characters)
+    - subdomain_length: Length of subdomain payload (characters)
+    - entropy: Shannon entropy of the full query (bits/char)
+    - subdomain_entropy: Shannon entropy of the subdomain portion (bits/char)
     - digit_ratio: Proportion of numerical characters (0-9)
     - inter_arrival_time: Time difference (seconds) between successive queries
+    - query_frequency: Number of queries within rolling 10-second window
     - label: 'Normal' or 'Suspicious'
     """
     if df is None or len(df) == 0:
@@ -103,6 +104,9 @@ def process_dns_dataframe(df: pd.DataFrame) -> pd.DataFrame:
         # Sort chronologically if timestamps are valid
         if not df['timestamp'].isna().all():
             df = df.sort_values(by='timestamp').reset_index(drop=True)
+        else:
+            start_time = pd.Timestamp.now()
+            df['timestamp'] = [start_time + pd.Timedelta(seconds=i * 1.5) for i in range(len(df))]
     else:
         # Generate synthetic chronological timestamps (1.5 second average step)
         start_time = pd.Timestamp.now()
@@ -160,6 +164,16 @@ def process_dns_dataframe(df: pd.DataFrame) -> pd.DataFrame:
         df['inter_arrival_time'] = deltas
     else:
         df['inter_arrival_time'] = df['inter_arrival_time'].astype(float).round(4)
+
+    # Calculate Query Frequency (rolling query count in 10-second window)
+    try:
+        ts = pd.to_datetime(df['timestamp'])
+        temp_df = pd.DataFrame({'time': ts, 'orig_idx': df.index})
+        temp_df = temp_df.sort_values('time')
+        freq = temp_df.rolling('10s', on='time')['orig_idx'].count()
+        df['query_frequency'] = freq.loc[df.index].fillna(1.0).astype(float)
+    except Exception:
+        df['query_frequency'] = 1.0
 
     # Label column handling
     label_col = None

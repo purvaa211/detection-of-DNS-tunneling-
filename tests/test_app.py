@@ -134,7 +134,7 @@ class TestAppEndpoints(unittest.TestCase):
         self.assertEqual(res_data['status'], 'success')
 
         # Clean up test upload
-        test_path = os.path.join(app.config['UPLOAD_FOLDER'], 'test_upload.csv')
+        test_path = os.path.join(app.config['UPLOAD_FOLDER'], 'custom_test_upload.csv')
         if os.path.exists(test_path):
             os.remove(test_path)
         # Restore default
@@ -158,6 +158,36 @@ class TestAppEndpoints(unittest.TestCase):
         self.assertEqual(response.status_code, 400)
         res_data = json.loads(response.data)
         self.assertEqual(res_data['status'], 'error')
+
+
+    def test_correlation_endpoint(self):
+        response = self.app.get('/api/stats/correlation?x_col=query_length&y_col=inter_arrival_time')
+        self.assertEqual(response.status_code, 200)
+        data = json.loads(response.data)
+        self.assertEqual(data['status'], 'success')
+        self.assertIn('matrix', data)
+        self.assertIn('pair_selected', data)
+
+    def test_multiple_regression_endpoint(self):
+        payload = {
+            "y_col": "entropy",
+            "x_cols": ["query_length", "inter_arrival_time"]
+        }
+        response = self.app.post('/api/stats/regression/multiple', json=payload)
+        self.assertEqual(response.status_code, 200)
+        data = json.loads(response.data)
+        self.assertEqual(data['status'], 'success')
+        self.assertIn('multiple_regression', data)
+        self.assertIn('r_squared', data['multiple_regression'])
+
+    def test_anomaly_endpoint(self):
+        response = self.app.get('/api/stats/anomaly?feature=query_length&z_threshold=2.5&iqr_multiplier=1.5')
+        self.assertEqual(response.status_code, 200)
+        data = json.loads(response.data)
+        self.assertEqual(data['status'], 'success')
+        self.assertIn('anomaly_analysis', data)
+        self.assertIn('z_score_method', data['anomaly_analysis'])
+        self.assertIn('iqr_method', data['anomaly_analysis'])
 
 
 if __name__ == '__main__':

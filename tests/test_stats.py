@@ -96,6 +96,41 @@ class TestStatsEngine(unittest.TestCase):
         self.assertGreater(reg['slope'], 0.0)
 
 
+    def test_correlation_matrix(self):
+        df = pd.DataFrame({
+            "query_length": [10, 20, 30, 40, 50],
+            "inter_arrival_time": [2.0, 1.5, 1.0, 0.5, 0.1],
+            "entropy": [2.0, 2.5, 3.0, 3.5, 4.0]
+        })
+        res = stats_engine.compute_correlation_matrix(df, features=['query_length', 'inter_arrival_time', 'entropy'])
+        self.assertEqual(len(res['features']), 3)
+        self.assertEqual(len(res['pearson_matrix']), 3)
+        self.assertEqual(len(res['pairwise_details']), 3)
+
+    def test_multiple_linear_regression(self):
+        df = pd.DataFrame({
+            "query_length": [10, 20, 30, 40, 50, 60, 70, 80],
+            "inter_arrival_time": [3.0, 2.5, 2.0, 1.5, 1.0, 0.8, 0.5, 0.2],
+            "entropy": [2.1, 2.4, 2.8, 3.2, 3.6, 4.0, 4.3, 4.7]
+        })
+        res = stats_engine.multiple_linear_regression(df, y_col='entropy', x_cols=['query_length', 'inter_arrival_time'])
+        self.assertIn('r_squared', res)
+        self.assertIn('adjusted_r_squared', res)
+        self.assertIn('coefficients', res)
+        self.assertGreater(res['r_squared'], 0.9)
+
+    def test_anomaly_detection(self):
+        df = pd.DataFrame({
+            "query_length": [20, 21, 22, 20, 19, 21, 22, 120, 20, 21],  # 120 is extreme outlier
+            "label": ["Normal"] * 7 + ["Suspicious"] + ["Normal"] * 2
+        })
+        res = stats_engine.run_anomaly_detection(df, feature='query_length', z_threshold=2.0, iqr_multiplier=1.5)
+        self.assertIn('z_score_method', res)
+        self.assertIn('iqr_method', res)
+        self.assertGreaterEqual(res['z_score_method']['outliers_count'], 1)
+        self.assertGreaterEqual(res['iqr_method']['outliers_count'], 1)
+
+
 class TestDetector(unittest.TestCase):
     def test_detector_evaluation(self):
         df = pd.DataFrame({

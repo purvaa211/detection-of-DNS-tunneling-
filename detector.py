@@ -1,12 +1,13 @@
 """
 Statistical DNS Tunneling Detection Engine.
 
-Implements and benchmarks three transparent, explainable detectors:
-1. Entropy-Only Detector (Threshold theta_H)
-2. Timing-Only Detector (Threshold theta_T on Inter-Arrival Time)
-3. Combined Statistical Detector (Hybrid rule & standardized composite score)
+Implements and benchmarks transparent, explainable detectors:
+1. Length-Only Detector (Threshold theta_L on query length)
+2. Entropy-Only Detector (Threshold theta_H on Shannon entropy)
+3. Timing-Only Detector (Threshold theta_T on Inter-Arrival Time)
+4. Combined Statistical Detector (Hybrid rule combining entropy, length, and timing)
 
-Computes complete diagnostic evaluation metrics:
+Computes diagnostic evaluation metrics:
 Detection Rate (Sensitivity/Recall), False Positive Rate (FPR), Precision (PPV),
 Specificity (TNR), Accuracy, F1-Score, and 2x2 Confusion Matrices.
 """
@@ -87,42 +88,48 @@ def run_detection_benchmark(
     length_threshold: int = 40
 ) -> Dict[str, Any]:
     """
-    Runs the 3 detectors on the active dataset:
-    1. Entropy-Only: Suspicious if entropy >= entropy_threshold
-    2. Timing-Only: Suspicious if IAT <= iat_threshold (high frequency bursts/beacons)
-    3. Combined: Suspicious if (entropy >= entropy_threshold) AND (length >= length_threshold OR IAT <= iat_threshold)
+    Runs the 4 explainable statistical detectors on the active dataset:
+    1. Length-Only: Suspicious if query_length >= length_threshold
+    2. Entropy-Only: Suspicious if entropy >= entropy_threshold
+    3. Timing-Only: Suspicious if IAT <= iat_threshold (high frequency bursts/beacons)
+    4. Combined: Suspicious if (entropy >= entropy_threshold - 0.15) AND (length >= length_threshold OR IAT <= iat_threshold)
     """
     if 'label' not in df.columns:
         raise ValueError("Active dataset must contain ground truth 'label' column.")
 
     y_true = df['label'].tolist()
 
-    # 1. Entropy-Only Predictions
+    # 1. Length-Only Predictions
+    y_pred_length = [
+        'Suspicious' if int(l) >= length_threshold else 'Normal'
+        for l in df['query_length']
+    ]
+    eval_length = evaluate_binary_classifier(y_true, y_pred_length)
+
+    # 2. Entropy-Only Predictions
     y_pred_entropy = [
         'Suspicious' if float(e) >= entropy_threshold else 'Normal'
         for e in df['entropy']
     ]
     eval_entropy = evaluate_binary_classifier(y_true, y_pred_entropy)
 
-    # 2. Timing-Only Predictions
+    # 3. Timing-Only Predictions
     y_pred_timing = [
         'Suspicious' if float(iat) <= iat_threshold else 'Normal'
         for iat in df['inter_arrival_time']
     ]
     eval_timing = evaluate_binary_classifier(y_true, y_pred_timing)
 
-    # 3. Combined Statistical Detector
-    # Combines entropy requirement with either length anomaly or timing burst
+    # 4. Combined Statistical Detector
     y_pred_combined = []
     for _, row in df.iterrows():
-        is_high_entropy = float(row['entropy']) >= (entropy_threshold - 0.15)  # slightly more flexible boundary
+        is_high_entropy = float(row['entropy']) >= (entropy_threshold - 0.15)
         is_long_query = int(row['query_length']) >= length_threshold
         is_burst_iat = float(row['inter_arrival_time']) <= iat_threshold
 
         if is_high_entropy and (is_long_query or is_burst_iat):
             y_pred_combined.append('Suspicious')
         elif float(row['entropy']) >= (entropy_threshold + 0.35):
-            # Extremely high entropy is suspicious regardless of length
             y_pred_combined.append('Suspicious')
         else:
             y_pred_combined.append('Normal')
@@ -131,17 +138,22 @@ def run_detection_benchmark(
 
     # Comparative analysis notes
     comparison_summary = {
+        "length_summary": (
+            f"Length-Only achieves Recall: {eval_length['metrics']['detection_rate_pct']}% with FPR: {eval_length['metrics']['false_positive_rate_pct']}%. "
+            f"Tunneling subdomains are typically long, but long CDN domain names can cause false alarms."
+        ),
         "entropy_summary": (
-            f"Entropy-Only detects high-randomness payloads well (Recall: {eval_entropy['metrics']['detection_rate_pct']}%), "
-            f"but may trigger false alarms on long benign CDN domains or miss short base32 queries (FPR: {eval_entropy['metrics']['false_positive_rate_pct']}%)."
+            f"Entropy-Only detects high-randomness encoded payloads (Recall: {eval_entropy['metrics']['detection_rate_pct']}%), "
+            f"with FPR: {eval_entropy['metrics']['false_positive_rate_pct']}%."
         ),
         "timing_summary": (
             f"Timing-Only flags rapid automated bursts (Recall: {eval_timing['metrics']['detection_rate_pct']}%), "
-            f"but normal browsing frequently opens multiple parallel TCP/DNS queries causing high false positives (FPR: {eval_timing['metrics']['false_positive_rate_pct']}%)."
+            f"with FPR: {eval_timing['metrics']['false_positive_rate_pct']}%. Normal web browsing often opens multiple parallel DNS requests."
         ),
         "combined_summary": (
-            f"Combined Statistical Detector achieves superior balance with Precision: {eval_combined['metrics']['precision_pct']}% "
-            f"and F1-Score: {eval_combined['metrics']['f1_score']:.3f}, drastically reducing false alarms."
+            f"Combined Statistical Detector achieves superior performance (Precision: {eval_combined['metrics']['precision_pct']}%, "
+            f"Accuracy: {eval_combined['metrics']['accuracy_pct']}%, F1-Score: {eval_combined['metrics']['f1_score']:.3f}), "
+            f"significantly reducing false positives."
         )
     }
 
@@ -152,6 +164,11 @@ def run_detection_benchmark(
             "length_threshold_chars": int(length_threshold)
         },
         "detectors": {
+            "length_only": {
+                "name": "Length-Only Detector",
+                "condition": f"Query Length >= {length_threshold} chars",
+                "results": eval_length
+            },
             "entropy_only": {
                 "name": "Entropy-Only Detector",
                 "condition": f"Entropy >= {entropy_threshold:.2f} bits",
@@ -168,5 +185,11 @@ def run_detection_benchmark(
                 "results": eval_combined
             }
         },
-        "comparisons": comparison_summary
+        "comparisons": comparison_summary,
+        "distinction_note": (
+            "Statistical Distinction: Statistical anomalies (such as Z-score outliers or extreme values) "
+            "represent mathematical deviations from a distribution. In contrast, detection benchmarks test "
+            "explainable decision boundaries against verified ground-truth labels. An anomaly is an indicator for "
+            "statistical review, not confirmed malicious activity."
+        )
     }
